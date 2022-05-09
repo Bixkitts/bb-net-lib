@@ -10,7 +10,6 @@
 
 struct Client 
 {
-	sockaddr_in Socket; //The socket it contains
-	int sockfd; 		//file descriptor
-
+    sockaddr_in Socket; //The socket it contains
+    int sockfd; 		//file descriptor
 };
