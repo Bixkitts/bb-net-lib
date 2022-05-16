@@ -5,31 +5,33 @@
 #include <netdb.h>
 #include <strings.h>
 #include <unistd.h>
+#include "clientObject.h"
 
-int makesock()
+Client* createClient(char *ip, u_short port)
 {
-    sockaddr_in server, sender;//Two socket addresses
-  
-    int sockfd;//this is the datagram socket and returns a file descriptor.
-    if ( (sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) { 
+    Client* client = new Client;
+ 	 
+    if ( (client->sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) { 
         perror("socket creation failed"); //perror is a system call to write an error.
         exit(EXIT_FAILURE);
     }   
     //"bzero" is a syscall to zero all the bytes
-    bzero((char *) &server, sizeof(server));
-    bzero((char *) &sender, sizeof(sender));
+    bzero((char *) &client->Socket, sizeof(client->Socket));
   
     //filling in the data of the server's ip.
-    server.sin_family = AF_INET;
-    server.sin_port = htons(54000);
-    inet_pton(AF_INET, "0.0.0.0", &server.sin_addr);
-    //bind the socket "sockfd" to the address and port in the sockaddr struct "server"
-    bind(sockfd, (struct sockaddr *) &server, sizeof(server));
-  
-    int n;
-    socklen_t len;
-  
-    len = sizeof(sender);  //len is value/resuslt
+    client->Socket.sin_family = AF_INET;
+    client->Socket.sin_port = htons(port);
+    inet_pton(AF_INET, ip, &client->Socket.sin_addr);
+    //bind the socket "sockfd" to serverthe address and port in the sockaddr struct "server"
+    bind(client->sockfd, (struct sockaddr *) &client->Socket, sizeof(client->Socket));
 
-    return 0;
+    return client;
+}
+
+int removeClient(Client* client)
+{
+	close(client->sockfd);
+	delete client;
+
+	return 0;
 }

@@ -7,7 +7,7 @@
 #include <netdb.h>
 #include "clientObject.h"
 
-int listenForData(char *buffer, uint16_t bufsize, Client &client) //need to add a source IP
+int listenForData(char *buffer, uint16_t bufsize, Client &client) 
 {
     int n;
     socklen_t len = sizeof(client.Socket);

@@ -13,7 +13,6 @@ int sendData(char *data, uint16_t datasize, Client &client)
   
     sendto(client.sockfd, data, datasize, MSG_CONFIRM, 
 	    (const struct sockaddr *) &client.Socket, len);
-    printf("Hello message sent.\n");
   
     return 0;
 }
