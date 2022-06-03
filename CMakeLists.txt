@@ -8,7 +8,7 @@ project("bbnetlib"
 
 
 file(GLOB_RECURSE SOURCES3 "src/*.cpp")
-add_library(${PROJECT_NAME} SHARED)
+add_library(${PROJECT_NAME} STATIC)
 target_sources(${PROJECT_NAME} PRIVATE ${SOURCES3})
 
 target_include_directories(${PROJECT_NAME}
