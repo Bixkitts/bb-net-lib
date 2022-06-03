@@ -7,9 +7,12 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netdb.h>
-struct Client 
+namespace netlib
 {
-    sockaddr_in Socket; //The socket it contains
-    int sockfd;         //file descriptor
-    bool bListen = 0;   //Is this client supposed to be currently listening on a thread
-};
+    struct Client 
+    {
+        sockaddr_in Socket; //The socket it contains
+        int sockfd;         //file descriptor
+        bool bListen = 0;   //Is this client supposed to be currently listening on a thread
+    };
+}

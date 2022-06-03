@@ -7,9 +7,14 @@ project("bbnetlib"
 
 
 
-file(GLOB_RECURSE SOURCES3 "src/*.cpp")
 add_library(${PROJECT_NAME} STATIC)
-target_sources(${PROJECT_NAME} PRIVATE ${SOURCES3})
+target_sources(${PROJECT_NAME} 
+    PRIVATE 
+        src/send.cpp
+        src/listen.cpp
+        src/makesock.cpp
+        src/clientObject.h
+)
 
 target_include_directories(${PROJECT_NAME}
 	PRIVATE
