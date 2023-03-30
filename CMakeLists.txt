@@ -10,9 +10,9 @@ project("bbnetlib"
 add_library(${PROJECT_NAME} STATIC)
 target_sources(${PROJECT_NAME} 
     PRIVATE 
-        src/send.cpp
-        src/listen.cpp
-        src/makesock.cpp
+        src/send.c
+        src/listen.c
+        src/makesock.c
         src/clientObject.h
 )
 
