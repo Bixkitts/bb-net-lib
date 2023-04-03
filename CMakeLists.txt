@@ -46,6 +46,8 @@ else()
     )
 endif()
 
+target_compile_options(${PROJECT_NAME} PRIVATE -fvisibility=hidden)
+
 # without it public headers won't get installed
 set(public_headers
     include/bbnetlib.h

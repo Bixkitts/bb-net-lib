@@ -1,15 +1,23 @@
-// A header file do declare and define a structure for a connected client and interface with them
+#ifndef CLIENTOBJECT
+#define CLIENTOBJECT
 
 #include <stdbool.h>
-#include <sys/types.h>
-#include <strings.h>
-#include <unistd.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
-#include <netdb.h>
+
+#include "defines.h"
+
 typedef struct Client 
 {
-        struct sockaddr_in Socket;  // The socket it contains 
-        int sockfd;                 // file descriptor 
-        bool bListen;               // Is this client supposed to be currently listening on a thread 
+    struct sockaddr_in socket;          // The socket it contains (IP and port)
+    int sockfd;                         // file descriptor for the socket
+    volatile bool bListen;              // Is this client supposed to be currently listening on a thread 
 } Client;
+
+BBNETAPI extern Client* createClient(char *ip, u_short port);  // Creates a client with an ip and port
+BBNETAPI extern void removeClient(Client* client);             // Removes a client, closing the socket and freeing the memory
+
+BBNETAPI extern void startListen(Client* client);       // Sets the bListen boolean
+BBNETAPI extern void stopListen(Client* client);        // Unsets the bListen boolean
+
+#endif
