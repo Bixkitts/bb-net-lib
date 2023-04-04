@@ -8,38 +8,34 @@
 
 #include "clientObject.h"
 
-Client* createClient(char *ip, u_short port)
+Client* createClient(const char *ip, const u_short port)
 {
     Client* client;
     client = (struct Client*) malloc(sizeof(struct Client));
     stopListen(client);
-    if ( (client->sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) { 
-        perror("socket creation failed"); //perror is a system call to write an error.
-        exit(EXIT_FAILURE);
-    }   
-    //"bzero" is a syscall to zero all the bytes
-    bzero((char *) &client->socket, sizeof(client->socket));
+    
+    bzero((char *) &client->address, sizeof(client->address));
 
     //filling in the data of the client's ip.
-    client->socket.sin_family = AF_INET;
-    client->socket.sin_port = htons(port);
-    inet_pton(AF_INET, ip, &client->socket.sin_addr);
-    //bind the socket "client->sockfd" to the address and port in the sockaddr struct "client->Socket"
-    int b = bind(client->sockfd, (struct sockaddr *) &client->socket, sizeof(client->socket));
+    client->address.sin_family = AF_INET;
+    client->address.sin_port = htons(port);
+    inet_pton(AF_INET, ip, &client->address.sin_addr);
 
-    if(b == 0)
-        printf("Bound socket successfully \n");
-    else
-    {
-        printf("Socket could not be bound, exiting \n");
-        EXIT_FAILURE;
-    }
     return client;
+}
+
+socketfd createSocket()
+{
+    socketfd sockfd;
+    if ( (sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) 
+    { 
+        perror("socket creation failed"); 
+    }   
+    return sockfd;
 }
 
 void removeClient(Client* client)
 {
-    close(client->sockfd);
     free(client);
 }
 
@@ -51,4 +47,9 @@ void stopListen(Client* client)
 void startListen(Client* client)
 {
     client->bListen = 1;
+}
+
+bool isListening(const Client* client)
+{
+    return client->bListen;
 }

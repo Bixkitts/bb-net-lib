@@ -5,14 +5,13 @@ project("bbnetlib"
 	VERSION 0.1
 )
 
-
-
 add_library(${PROJECT_NAME} STATIC)
 target_sources(${PROJECT_NAME} 
     PRIVATE 
+        src/defines.h
         src/send.c
         src/listen.c
-        src/makesock.c
+        src/clientObject.c
         src/clientObject.h
 )
 
@@ -72,16 +71,13 @@ install(TARGETS ${PROJECT_NAME}
     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME} # include/SomeLibrary
     INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} # include
 )
-
 # generate and install export file
 install(EXPORT "${PROJECT_NAME}Targets"
     FILE "${PROJECT_NAME}Targets.cmake"
     NAMESPACE ${namespace}::
     DESTINATION cmake
 )
-
 include(CMakePackageConfigHelpers)
-
 # generate the version file for the config file
 write_basic_package_version_file(
     "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
