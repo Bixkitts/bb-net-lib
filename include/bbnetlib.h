@@ -9,7 +9,6 @@ __BEGIN_DECLS
 typedef struct Client 
 {
     sockaddr_in address; //The socket it contains
-    int sockfd;         //file descriptor
     bool bListen = 0;   //Is this client supposed to be currently listening on a thread
 } Client;
 

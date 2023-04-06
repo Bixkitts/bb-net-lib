@@ -24,16 +24,6 @@ Client* createClient(const char *ip, const u_short port)
     return client;
 }
 
-socketfd createSocket()
-{
-    socketfd sockfd;
-    if ( (sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) 
-    { 
-        perror("socket creation failed"); 
-    }   
-    return sockfd;
-}
-
 void removeClient(Client* client)
 {
     free(client);

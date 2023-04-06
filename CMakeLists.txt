@@ -10,7 +10,9 @@ target_sources(${PROJECT_NAME}
     PRIVATE 
         src/defines.h
         src/send.c
+        src/send.h
         src/listen.c
+        src/listen.h
         src/clientObject.c
         src/clientObject.h
 )

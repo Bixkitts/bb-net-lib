@@ -20,11 +20,11 @@ int sendDataUDP(const char *data, const uint16_t datasize, const socketfd sockfd
 
 int sendDataTCP(const char *data, const uint16_t datasize, const socketfd sockfd)
 {
-        if (send(sockfd, data, datasize, 0) < 0) 
-        {
-            perror("Failed to send TCP message\n");
-            return -1;
-        }
+    if (send(sockfd, data, datasize, 0) < 0) 
+    {
+        perror("Failed to send TCP message\n");
+        return -1;
+    }
     return 0;
 }
 
