@@ -15,7 +15,7 @@
 
 static socketfd socketPool[SOCK_MAX] = {INVALID_FD};        // A pool to get sockets from
 
-socketIndex createSocket()             
+socketIndex createSocket(socketfd value)             
 {
     socketIndex index;
     if(FAILURE(findFreeSocket(&index)))
@@ -23,7 +23,10 @@ socketIndex createSocket()
         perror("failure to find a free socket!");
         return ERROR;
     }
-    socketPool[index] = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
+    if(value == SOCK_DEFAULT)
+    {
+        socketPool[index] = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
+    }
     if ( IS_INVALID_FD(socketPool[index]) )
     { 
         perror("socket creation failed"); 

@@ -6,23 +6,25 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include "clientObject.h"
+#include "socketPool.h"
 
-int listenForUDP(char *buffer, uint16_t bufsize, const socketfd sockfd, Client *localhost, Client *remotehost)    //Should be called on it's own thread as the while loop is blocking 
-{      
+int listenForUDP(char *buffer, uint16_t bufsize, Client *localhost, Client *remotehost)    //Should be called on it's own thread as the while loop is blocking 
+{     
+    socketIndex index = createSocket();
     startListen(localhost);
 
     int numBytes;
     socklen_t len = sizeof(localhost->address);
 
-    while(isListening(localhost))
+    while(isListening(localhost)) // We can shut this down by calling stopListening on the client
     {
-        numBytes = recvfrom(sockfd, buffer, bufsize, MSG_WAITALL, ( struct sockaddr *)&remotehost->address, &len);
+        numBytes = recvfrom(getSocketAtIndex(index), buffer, bufsize, MSG_WAITALL, ( struct sockaddr *)&remotehost->address, &len);
         buffer[numBytes] = '\0';
     }
-    return 0;
+    return SUCCESS;
 }
 
-int receiveTCPpackets(char *buffer, uint16_t bufsize, const socketfd sockfd, const Client *localhost) 
+int receiveTCPpackets(char *buffer, uint16_t bufsize, const Client *localhost) 
 {
     int numBytes;
     // Receive data continuously until client closes connection
@@ -36,10 +38,10 @@ int receiveTCPpackets(char *buffer, uint16_t bufsize, const socketfd sockfd, con
             break;
         }
     }
-    return 0;
+    return SUCCESS;
 }
 
-int listenForTCP(char *buffer, uint16_t bufsize, const socketfd sockfd, Client *localhost, const Client *remotehost)
+int listenForTCP(char *buffer, uint16_t bufsize, Client *localhost, const Client *remotehost)
 {
     startListen(localhost);
 
@@ -47,7 +49,7 @@ int listenForTCP(char *buffer, uint16_t bufsize, const socketfd sockfd, Client *
     if (listen(sockfd, 5) < 0) 
     {
         printf("Error occurred while listening for connections\n");
-        return -1;
+        return ERROR;
     }
 
     // Accept incoming connection from remote host
@@ -57,13 +59,13 @@ int listenForTCP(char *buffer, uint16_t bufsize, const socketfd sockfd, Client *
     if (sockfd_new < 0) 
     {
         printf("Error occurred while accepting connection\n");
-        return -1;
+        return ERROR;
     }
 
     // Receive TCP packets from the connected remote host
     receiveTCPpackets(buffer, bufsize, sockfd_new, localhost);
 
-    return 0;
+    return SUCCESS;
 }
 
 static int bindSocket(const socketfd sockfd, const Client *localhost)
@@ -76,5 +78,5 @@ static int bindSocket(const socketfd sockfd, const Client *localhost)
     else
         printf("Socket could not be bound, exiting \n");
 
-    return 0;
+    return SUCCESS;
 }

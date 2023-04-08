@@ -3,11 +3,12 @@
 
 #include <stdbool.h>
 #include "clientObject.h"
+#include "defines.h"
 
-int listenForUDP(char *buffer, uint16_t bufsize, Client *localhost, Client *remotehost);
+BBNETAPI int listenForUDP(char *buffer, uint16_t bufsize, Client *localhost, Client *remotehost);
 
-int listenForTCP(char *buffer, uint16_t bufsize, const socketfd sockfd, Client *localhost, const Client *remotehost);
-int receiveTCPpackets(char *buffer, uint16_t bufsize, const socketfd sockfd, const Client *localhost) ;
+BBNETAPI int listenForTCP(char *buffer, uint16_t bufsize, Client *localhost, const Client *remotehost);
+BBNETAPI int receiveTCPpackets(char *buffer, uint16_t bufsize, const Client *localhost) ;
 
 static int bindSocket(const socketfd sockfd, const Client *client);
 

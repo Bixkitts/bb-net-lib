@@ -5,6 +5,7 @@
 // as a shared library in which case this becomes valid.
 #define BBNETAPI __attribute((visibility("default")))
 #define ERROR -1
+#define SUCCESS 0
 #define FAILURE(func) ((func) == ERROR)
 #define BITS_PER_BYTE 8
 

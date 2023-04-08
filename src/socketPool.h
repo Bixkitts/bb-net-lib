@@ -2,14 +2,14 @@
 #define SOCKETPOOL
 
 #define SOCK_MAX 2048               // Maximum amount of sockets open at once
-#define SOCK_LUT SOCK_MAX/8         // LUT bytes for the avail
 #define IS_INVALID_FD(fd) ((fd) < 0)   // Check for invalid File Descriptor
 #define INVALID_FD -1
+#define SOCK_DEFAULT 0
 
 typedef int socketfd;               // File descriptor for a socket
 typedef int socketIndex;            // An Integer that is an index in socketPool[]                        
-
-extern socketIndex createSocket();         // Create a new socket in the global pool
+extern socketIndex createSocket(socketfd value);         // Create a new socket in the global pool
+                                                         // Pass SOCK_DEFAULT for a plain IP socket
 extern void closeSocket(socketIndex index);
 extern socketfd getSocketAtIndex(socketIndex index);
                                         // and return it
