@@ -7,9 +7,9 @@
 #include <stdio.h>
 
 #include "clientObject.h"
-#include "socketPool.h"
+#include "socketsNetLib.h"
 
-int sendDataUDP(const char *data, const uint16_t datasize, const socketfd sockfd, const Client *remotehost)
+int sendDataUDP(const char *data, const uint16_t datasize, const Client *remotehost)
 {
     socklen_t len = sizeof(remotehost->address);    
     

@@ -43,3 +43,13 @@ bool isListening(const Client* client)
 {
     return client->bListen;
 }
+
+void setSocket(Client* client, socketfd sockfd)
+{
+    client->associatedSocket = sockfd;
+}
+
+socketfd getSocket(Client* client)
+{
+    return client->associatedSocket;
+}
