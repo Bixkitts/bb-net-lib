@@ -5,7 +5,9 @@
 #include <strings.h>
 #include <unistd.h>
 #include <stdio.h>
+
 #include "clientObject.h"
+#include "socketPool.h"
 
 int sendDataUDP(const char *data, const uint16_t datasize, const socketfd sockfd, const Client *remotehost)
 {

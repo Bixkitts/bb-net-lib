@@ -5,5 +5,6 @@
 // as a shared library in which case this becomes valid.
 #define BBNETAPI __attribute((visibility("default")))
 #define ERROR -1
+#define FAILURE(func) ((func) == ERROR)
 
 #endif

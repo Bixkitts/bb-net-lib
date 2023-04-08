@@ -6,8 +6,7 @@
 #include <arpa/inet.h>
 
 #include "defines.h"
-
-typedef int socketfd;
+#include "socketPool.h"
 
 typedef struct Client   // Structure that can be expanded and used to hold any needed info
 {
@@ -15,11 +14,8 @@ typedef struct Client   // Structure that can be expanded and used to hold any n
     volatile bool bListen;              // Is this client supposed to be currently listening on a thread 
 } Client;
 
-
-
 BBNETAPI extern Client* createClient(const char *ip, const u_short port);  // Creates a client with an ip and port
 BBNETAPI extern void removeClient(Client* client);             // Removes a client, closing the socket and freeing the memory
-extern socketfd createSocket();
 
 // Checking or setting an interface for listening
 extern void startListen(Client* client);       // Sets the bListen boolean
