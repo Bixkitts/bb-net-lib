@@ -10,8 +10,8 @@ typedef int socketfd;
 
 typedef struct Client 
 {
-    sockaddr_in address; //The socket it contains
-    bool bListen = 0;   //Is this client supposed to be currently listening on a thread
+    struct sockaddr_in address; //The socket it contains
+    volatile bool bListen;   //Is this client supposed to be currently listening on a thread
     socketfd associatedSocket;
 } Client;
 
