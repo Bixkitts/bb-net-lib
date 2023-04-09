@@ -15,8 +15,9 @@ target_sources(${PROJECT_NAME}
         src/listen.h
         src/clientObject.c
         src/clientObject.h
-        src/socketPool.c
-        src/socketPool.h
+        src/socketsNetLib.c
+        src/socketsNetLib.h
+        src/socketfd.h
 )
 
 target_include_directories(${PROJECT_NAME}

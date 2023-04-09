@@ -26,6 +26,6 @@ extern void startListen(Client* client);       // Sets the bListen boolean
 extern void stopListen(Client* client);        // Unsets the bListen boolean
 extern bool isListening(const Client* client);
 extern void setSocket(Client* client, socketfd sockfd);
-extern socketfd getSocket(Client* client);
+extern socketfd getSocket(const Client* client);
 
 #endif

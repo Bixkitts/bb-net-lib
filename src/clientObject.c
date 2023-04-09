@@ -49,7 +49,7 @@ void setSocket(Client* client, socketfd sockfd)
     client->associatedSocket = sockfd;
 }
 
-socketfd getSocket(Client* client)
+socketfd getSocket(const Client* client)
 {
     return client->associatedSocket;
 }

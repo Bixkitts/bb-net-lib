@@ -11,9 +11,13 @@
 #include "socketsNetLib.h"
 
 int listenForUDP(char *buffer, const uint16_t bufsize, Client *localhost, Client *remotehost)    //Should be called on it's own thread as the while loop is blocking 
-{     
-    socketfd sockfd = createSocket(SOCK_DEFAULT);
-    bindSocket(sockfd, localhost);
+{    
+    const socketfd sockfd = createSocket(SOCK_DEFAULT);
+    if(FAILURE(bindSocket(sockfd, localhost)))
+    {
+        perror("Failed to listen for UDP connection");
+        return ERROR;
+    }
     startListen(localhost);
 
     int64_t numBytes;
@@ -27,7 +31,7 @@ int listenForUDP(char *buffer, const uint16_t bufsize, Client *localhost, Client
         buffer[numBytes] = '\0';    // Null terminate the received data
         if (numBytes <= 0) 
         {
-            printf("Error occurred while receiving data\n");
+            perror("Error occurred while receiving data\n");
             break;
         }
     }
@@ -43,9 +47,7 @@ int listenForTCP(char *buffer, const uint16_t bufsize, Client *localhost, const 
         perror("Failed to listen for TCP connection");
         return ERROR;
     }
-
     startListen(localhost);
-    // Listen for incoming connections
     while(isListening(localhost))
     {
         if (listen(sockfd, SOCK_BACKLOG) < 0) 
@@ -65,6 +67,7 @@ int listenForTCP(char *buffer, const uint16_t bufsize, Client *localhost, const 
     // Receive TCP packets from the connected remote host
     receiveTCPpackets(buffer, bufsize, sockfd_new, localhost);
     
+    closeSocket(sockfd);
     stopListen(localhost);
     return SUCCESS;
 }
@@ -83,5 +86,6 @@ int receiveTCPpackets(char *buffer, const uint16_t bufsize, const socketfd sockf
             break;
         }
     }
+    closeSocket(sockfd);
     return SUCCESS;
 }

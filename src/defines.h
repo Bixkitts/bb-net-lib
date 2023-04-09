@@ -6,7 +6,7 @@
 #define BBNETAPI __attribute((visibility("default")))
 #define ERROR -1
 #define SUCCESS 0
-#define FAILURE(func) ((func) == ERROR)
+#define FAILURE(func) ((func) < 0)
 #define BITS_PER_BYTE 8
 
 #endif

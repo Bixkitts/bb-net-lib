@@ -9,33 +9,49 @@
 #include "clientObject.h"
 #include "socketsNetLib.h"
 
-int sendDataUDP(const char *data, const uint16_t datasize, const Client *remotehost)
+int sendDataUDP(const char *data, const uint16_t datasize, Client *remotehost)
 {
+    socketfd sockfd;
+    if(IS_INVALID_FD(getSocket(remotehost)))
+    {
+       sockfd = createSocket(SOCK_DEFAULT); 
+       setSocket(remotehost, sockfd);
+    }else
+    {
+        sockfd = getSocket(remotehost);
+    }
     socklen_t len = sizeof(remotehost->address);    
-    
+    const struct sockaddr* remoteAddress = 
+        (const struct sockaddr *) &remotehost->address; 
     // no error checking
-    sendto(sockfd, data, datasize, MSG_CONFIRM, 
-        (const struct sockaddr *) &remotehost->address, len);
+    sendto(sockfd, data, datasize, MSG_CONFIRM, remoteAddress, len);
     
-    return 0;
+    return SUCCESS;
 }
 
-int sendDataTCP(const char *data, const uint16_t datasize, const socketfd sockfd)
+int sendDataTCP(const char *data, const uint16_t datasize, const Client *remotehost)
 {
-    if (send(sockfd, data, datasize, 0) < 0) 
+    if (FAILURE(send(getSocket(remotehost), data, datasize, 0))) 
     {
         perror("Failed to send TCP message\n");
-        return -1;
+        return ERROR;
     }
-    return 0;
+    return SUCCESS;
 }
 
-int connectToTCP(const socketfd sockfd, const Client *remotehost)
+int connectToTCP(Client *remotehost)
 {
-    if (connect(sockfd, (struct sockaddr *)&remotehost->address.sin_addr, sizeof(remotehost->address.sin_addr)) < 0)
+    socketfd sockfd;
+    
+    struct sockaddr* remoteAddress = 
+        (struct sockaddr *)&remotehost->address.sin_addr;
+    int sizeOfAddress = sizeof(remotehost->address.sin_addr);
+
+    if (IS_INVALID_FD(connect(sockfd, remoteAddress, sizeOfAddress)))
     {
         perror("connect failed");
-        return -1;
+        return ERROR;
     }
-    return 0;
+    setSocket(remotehost, sockfd);
+    return SUCCESS;
 }
