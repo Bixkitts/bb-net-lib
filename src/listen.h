@@ -1,6 +1,7 @@
 #ifndef LISTEN
 #define LISTEN
 
+#include <stdint.h>
 #include <stdbool.h>
 #include "clientObject.h"
 #include "socketsNetLib.h"

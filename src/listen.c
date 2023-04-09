@@ -1,5 +1,6 @@
 #include <sys/types.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <strings.h>
 #include <unistd.h>
 #include <sys/socket.h>

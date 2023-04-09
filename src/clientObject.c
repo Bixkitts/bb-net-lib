@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdbool.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -8,7 +9,7 @@
 
 #include "clientObject.h"
 
-Client* createClient(const char *ip, const u_short port)
+Client* createClient(const char *ip, const uint16_t port)
 {
     Client* client;
     client = (struct Client*) malloc(sizeof(struct Client));

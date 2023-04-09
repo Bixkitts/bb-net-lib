@@ -1,6 +1,8 @@
 #ifndef BBNETLIB
 #define BBNETLIB
 
+#include <stdbool.h>
+#include <stdint.h>
 #include <sys/cdefs.h>
 #include <netdb.h>
 
@@ -24,7 +26,7 @@ extern int sendDataTCP(const char *data, const uint16_t datasize, const Client *
 extern int listenForTCP(char *buffer, const uint16_t bufsize, Client *localhost, const Client *remotehost);   // Listen for a TCP connection
 int receiveTCPpackets(char *buffer, const uint16_t bufsize, const socketfd sockfd, const Client *localhost); 
 
-extern Client* createClient(char *ip, u_short port);       // Creates a socket for a particular IP and Port
+extern Client* createClient(char *ip, uint16_t port);       // Creates a socket for a particular IP and Port
 
 __END_DECLS
 
