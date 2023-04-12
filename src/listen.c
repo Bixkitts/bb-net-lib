@@ -22,17 +22,18 @@ int listenForUDP(char *buffer, const uint16_t bufsize, Client *localhost, Client
         perror("Failed to listen for UDP connection");
         return ERROR;
     }
-    startListen(localhost);
+    setListening(localhost);
 
     int64_t numBytes;
     socklen_t len = sizeof(localhost->address);
     // Need to cast the pointer to a sockaddr type to satisfy the syscall
     struct sockaddr* remoteAddress = ( struct sockaddr *)&remotehost->address;
 
-    while(isListening(localhost)) // We can shut this down by calling stopListening on the client
+    while(isListening(localhost)) // We can shut this down by calling unsetListeninging on the client
     {
         numBytes = recvfrom(sockfd, buffer, bufsize, MSG_WAITALL, remoteAddress, &len);
         buffer[numBytes] = '\0';    // Null terminate the received data
+
         if (numBytes <= 0) 
         {
             perror("Error occurred while receiving data\n");
@@ -40,7 +41,7 @@ int listenForUDP(char *buffer, const uint16_t bufsize, Client *localhost, Client
         }
         packet_handler(buffer, bufsize);
     }
-    stopListen(localhost);
+    unsetListening(localhost);
     return SUCCESS;
 }
 
@@ -52,7 +53,7 @@ int listenForTCP(char *buffer, const uint16_t bufsize, Client *localhost, const 
         perror("Failed to listen for TCP connection");
         return ERROR;
     }
-    startListen(localhost);
+    setListening(localhost);
     while(isListening(localhost))
     {
         if (listen(sockfd, SOCK_BACKLOG) < 0) 
@@ -73,7 +74,7 @@ int listenForTCP(char *buffer, const uint16_t bufsize, Client *localhost, const 
     receiveTCPpackets(buffer, bufsize, sockfd_new, localhost, packet_handler);
     
     closeSocket(sockfd);
-    stopListen(localhost);
+    unsetListening(localhost);
     return SUCCESS;
 }
 
@@ -85,6 +86,7 @@ static int receiveTCPpackets(char *buffer, const uint16_t bufsize, const socketf
     {
         // Receive TCP packet from client and store in buffer
         numBytes = recv(sockfd, buffer, bufsize, 0);
+        buffer[numBytes] = '\0'; // Null terminate the received data
 
         if (numBytes <= 0) 
         {

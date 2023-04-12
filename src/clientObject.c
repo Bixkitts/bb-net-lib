@@ -14,7 +14,7 @@ Client* createClient(const char *ip, const uint16_t port)
 {
     Client* client;
     client = (struct Client*) malloc(sizeof(struct Client));
-    stopListen(client);
+    unsetListening(client);
     
     bzero((char *) &client->address, sizeof(client->address));
 

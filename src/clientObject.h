@@ -23,8 +23,8 @@ BBNETAPI extern void removeClient(Client* client);                          // R
 BBNETAPI extern char* getIP(Client* client);                                // Returns a string representation of the IP address in the client
 
 // Checking or setting an interface for listening
-extern void startListen(Client* client);       // Sets the bListen boolean
-extern void stopListen(Client* client);        // Unsets the bListen boolean
+extern void setListening(Client* client);       // Sets the bListen boolean
+extern void unsetListening(Client* client);        // Unsets the bListen boolean
 extern bool isListening(const Client* client);
 extern void setSocket(Client* client, socketfd sockfd);
 extern socketfd getSocket(const Client* client);
