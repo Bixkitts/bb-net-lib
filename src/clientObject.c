@@ -1,3 +1,4 @@
+#include <netinet/in.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -24,7 +25,12 @@ Client* createClient(const char *ip, const uint16_t port)
 
     return client;
 }
-
+char* getIP(Client* client)
+{
+    char* ip_str = (char*) malloc(INET_ADDRSTRLEN * sizeof(char));
+    inet_ntop(AF_INET, &(client->address.sin_addr), ip_str, INET_ADDRSTRLEN);
+    return ip_str;
+}
 void removeClient(Client* client)
 {
     free(client);

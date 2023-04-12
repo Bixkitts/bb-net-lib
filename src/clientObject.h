@@ -19,7 +19,8 @@ typedef struct Client   // Structure that can be expanded and used to hold any n
 } Client;
 
 BBNETAPI extern Client* createClient(const char *ip, const uint16_t port);  // Creates a client with an ip and port
-BBNETAPI extern void removeClient(Client* client);             // Removes a client, closing the socket and freeing the memory
+BBNETAPI extern void removeClient(Client* client);                          // Removes a client, closing the socket and freeing the memory
+BBNETAPI extern char* getIP(Client* client);                                // Returns a string representation of the IP address in the client
 
 // Checking or setting an interface for listening
 extern void startListen(Client* client);       // Sets the bListen boolean

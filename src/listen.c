@@ -11,7 +11,10 @@
 #include "listen.h"
 #include "socketsNetLib.h"
 
-int listenForUDP(char *buffer, const uint16_t bufsize, Client *localhost, Client *remotehost)    //Should be called on it's own thread as the while loop is blocking 
+static int receiveTCPpackets(char *buffer, const uint16_t bufsize, const socketfd sockfd, const Client *localhost, void (*packet_handler)(char*, uint16_t)) ;
+
+
+int listenForUDP(char *buffer, const uint16_t bufsize, Client *localhost, Client *remotehost, void (*packet_handler)(char*, uint16_t))    //Should be called on it's own thread as the while loop is blocking 
 {    
     const socketfd sockfd = createSocket(SOCK_DEFAULT);
     if(FAILURE(bindSocket(sockfd, localhost)))
@@ -35,12 +38,13 @@ int listenForUDP(char *buffer, const uint16_t bufsize, Client *localhost, Client
             perror("Error occurred while receiving data\n");
             break;
         }
+        packet_handler(buffer, bufsize);
     }
     stopListen(localhost);
     return SUCCESS;
 }
 
-int listenForTCP(char *buffer, const uint16_t bufsize, Client *localhost, const Client *remotehost)
+int listenForTCP(char *buffer, const uint16_t bufsize, Client *localhost, const Client *remotehost, void (*packet_handler)(char*, uint16_t))
 {
     const socketfd sockfd = createSocket(SOCK_DEFAULT);
     if(FAILURE(bindSocket(sockfd, localhost)))
@@ -66,14 +70,14 @@ int listenForTCP(char *buffer, const uint16_t bufsize, Client *localhost, const 
     const socketfd sockfd_new = createSocket(accept(sockfd, remoteAddress, &len));
 
     // Receive TCP packets from the connected remote host
-    receiveTCPpackets(buffer, bufsize, sockfd_new, localhost);
+    receiveTCPpackets(buffer, bufsize, sockfd_new, localhost, packet_handler);
     
     closeSocket(sockfd);
     stopListen(localhost);
     return SUCCESS;
 }
 
-int receiveTCPpackets(char *buffer, const uint16_t bufsize, const socketfd sockfd, const Client *localhost) 
+static int receiveTCPpackets(char *buffer, const uint16_t bufsize, const socketfd sockfd, const Client *localhost, void (*packet_handler)(char*, uint16_t)) 
 {
     int64_t numBytes;
     // Receive data continuously until client closes connection
@@ -81,11 +85,13 @@ int receiveTCPpackets(char *buffer, const uint16_t bufsize, const socketfd sockf
     {
         // Receive TCP packet from client and store in buffer
         numBytes = recv(sockfd, buffer, bufsize, 0);
+
         if (numBytes <= 0) 
         {
             printf("Error occurred while receiving data\n");
             break;
         }
+        packet_handler(buffer, bufsize);
     }
     closeSocket(sockfd);
     return SUCCESS;
