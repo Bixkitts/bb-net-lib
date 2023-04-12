@@ -14,7 +14,7 @@
 
 socketfd createSocket(socketfd value)             
 {
-    socketfd sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
+    socketfd sockfd = value;
     if ( IS_INVALID_FD(socket) )
     { 
         perror("socket creation failed"); 

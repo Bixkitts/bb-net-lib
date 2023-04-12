@@ -1,10 +1,11 @@
 #ifndef SOCKETPOOL
 #define SOCKETPOOL
 
-#define IS_INVALID_FD(fd) ((fd) < 0)    // Check for invalid File Descriptor
-#define INVALID_FD -1                   // Potential return for socket creation
-#define SOCK_DEFAULT 0                  // Creating a socket without passing in a value
-#define SOCK_BACKLOG 5                  // Potential socket backlog when listening
+#define IS_INVALID_FD(fd) ((fd) < 0)                        // Check for invalid File Descriptor
+#define INVALID_FD -1                                       // Potential return for socket creation
+#define SOCK_DEFAULT_TCP socket(AF_INET, SOCK_STREAM, 0)    // Creating a socket without passing in a value
+#define SOCK_DEFAULT_UDP socket(AF_INET, SOCK_DGRAM, 0)     // Creating a socket without passing in a value
+#define SOCK_BACKLOG 5                                      // Potential socket backlog when listening
 
 #include "clientObject.h"
 #include "socketfd.h"

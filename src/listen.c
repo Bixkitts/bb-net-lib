@@ -17,7 +17,7 @@ static int receiveTCPpackets(char *buffer, const uint16_t bufsize, const socketf
 
 int listenForUDP(char *buffer, const uint16_t bufsize, Client *localhost, Client *remotehost, void (*packet_handler)(char*, uint16_t))    //Should be called on it's own thread as the while loop is blocking 
 {    
-    const socketfd sockfd = createSocket(SOCK_DEFAULT);
+    const socketfd sockfd = createSocket(SOCK_DEFAULT_UDP);
     if(FAILURE(bindSocket(sockfd, localhost)))
     {
         perror("Failed to listen for UDP ");
@@ -48,7 +48,7 @@ int listenForUDP(char *buffer, const uint16_t bufsize, Client *localhost, Client
 
 int listenForTCP(char *buffer, const uint16_t bufsize, Client *localhost, const Client *remotehost, void (*packet_handler)(char*, uint16_t))
 {
-    const socketfd sockfd = createSocket(SOCK_DEFAULT);
+    const socketfd sockfd = createSocket(SOCK_DEFAULT_TCP);
     if(FAILURE(bindSocket(sockfd, localhost)))
     {
         perror("Failed to listen for TCP ");
