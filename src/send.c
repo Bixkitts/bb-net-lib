@@ -15,7 +15,7 @@ int sendDataUDP(const char *data, const uint16_t datasize, Client *remotehost)
     socketfd sockfd;
     if(IS_INVALID_FD(getSocket(remotehost)))
     {
-       sockfd = createSocket(SOCK_DEFAULT); 
+       sockfd = createSocket(SOCK_DEFAULT_UDP); 
        setSocket(remotehost, sockfd);
     }else
     {
