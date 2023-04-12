@@ -1,11 +1,12 @@
 #include <sys/types.h>
 #include <stdio.h>
 #include <stdint.h>
-#include <strings.h>
+#include <string.h>
 #include <unistd.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <errno.h>
 
 #include "clientObject.h"
 #include "listen.h"
@@ -54,14 +55,10 @@ int listenForTCP(char *buffer, const uint16_t bufsize, Client *localhost, const 
         return ERROR;
     }
     setListening(localhost);
-    while(isListening(localhost))
+    if (FAILURE(listen(sockfd, SOCK_BACKLOG))) 
     {
-        if (listen(sockfd, SOCK_BACKLOG) < 0) 
-        {
-            printf("Error occurred while listening for s\n");
-            return ERROR;
-        }
-        break;
+        printf("Error: listen() failed with errno %d: %s\n", errno, strerror(errno));
+        return ERROR;
     }
 
     socklen_t len = sizeof(remotehost->address);
