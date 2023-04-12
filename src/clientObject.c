@@ -36,12 +36,12 @@ void removeClient(Client* client)
     free(client);
 }
 
-void stopListen(Client* client)
+void unsetListening(Client* client)
 {
     client->bListen = 0;
 }
 
-void startListen(Client* client)
+void setListening(Client* client)
 {
     client->bListen = 1;
 }

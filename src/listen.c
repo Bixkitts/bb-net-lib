@@ -19,7 +19,7 @@ int listenForUDP(char *buffer, const uint16_t bufsize, Client *localhost, Client
     const socketfd sockfd = createSocket(SOCK_DEFAULT);
     if(FAILURE(bindSocket(sockfd, localhost)))
     {
-        perror("Failed to listen for UDP connection");
+        perror("Failed to listen for UDP ");
         return ERROR;
     }
     setListening(localhost);
@@ -50,7 +50,7 @@ int listenForTCP(char *buffer, const uint16_t bufsize, Client *localhost, const 
     const socketfd sockfd = createSocket(SOCK_DEFAULT);
     if(FAILURE(bindSocket(sockfd, localhost)))
     {
-        perror("Failed to listen for TCP connection");
+        perror("Failed to listen for TCP ");
         return ERROR;
     }
     setListening(localhost);
@@ -58,7 +58,7 @@ int listenForTCP(char *buffer, const uint16_t bufsize, Client *localhost, const 
     {
         if (listen(sockfd, SOCK_BACKLOG) < 0) 
         {
-            printf("Error occurred while listening for connections\n");
+            printf("Error occurred while listening for s\n");
             return ERROR;
         }
         break;
@@ -67,7 +67,7 @@ int listenForTCP(char *buffer, const uint16_t bufsize, Client *localhost, const 
     socklen_t len = sizeof(remotehost->address);
     struct sockaddr* remoteAddress = ( struct sockaddr *)&remotehost->address;
 
-    // Accept incoming connection from remote host
+    // Accept incoming  from remote host
     const socketfd sockfd_new = createSocket(accept(sockfd, remoteAddress, &len));
 
     // Receive TCP packets from the connected remote host
@@ -81,7 +81,7 @@ int listenForTCP(char *buffer, const uint16_t bufsize, Client *localhost, const 
 static int receiveTCPpackets(char *buffer, const uint16_t bufsize, const socketfd sockfd, const Client *localhost, void (*packet_handler)(char*, uint16_t)) 
 {
     int64_t numBytes;
-    // Receive data continuously until client closes connection
+    // Receive data continuously until client closes 
     while(isListening(localhost)) 
     {
         // Receive TCP packet from client and store in buffer
