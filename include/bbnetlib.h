@@ -14,12 +14,12 @@ typedef struct Client Client;
 
 // UDP Functions
 extern int sendDataUDP(const char *buffer, const uint16_t bufsize, Client *remotehost);    
-extern int listenForUDP(const char *buffer, const uint16_t bufsize, Client *localhost, Client *remotehost, void (*packet_handler)(char*,uint16_t));   
+extern int listenForUDP(const char *buffer, const uint16_t bufsize, Client *localhost, Client *remotehost, void (*packet_handler)(char*,uint16_t,Client*));   
 
 //TCP Functions
 extern int connectToTCP(Client *remotehost);
 extern int sendDataTCP(const char *data, const uint16_t datasize, const Client *remotehost);
-extern int listenForTCP(char *buffer, const uint16_t bufsize, Client *localhost, const Client *remotehost, void (*packet_handler)(char*,uint16_t));   
+extern int listenForTCP(char *buffer, const uint16_t bufsize, Client *localhost, Client *remotehost, void (*packet_handler)(char*,uint16_t,Client*));   
 
 
 // Use this struct to create a localhost and remotehost.
