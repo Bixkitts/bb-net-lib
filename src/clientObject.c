@@ -72,3 +72,8 @@ void setClientPacketHandler(Client* client, void (*packet_handler)(char*, uint16
 {
     client->packet_handler = packet_handler;
 }
+
+void (*getClientPacketHandler(Client* client))(char*, uint16_t, Client*)
+{
+    return client->packet_handler;
+}

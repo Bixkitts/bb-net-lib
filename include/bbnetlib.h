@@ -29,6 +29,7 @@ extern Client* createClient(char *ip, uint16_t port);
 extern char* getIP(Client* client); // Returns a string representation of the IP address in the client of INET_ADDRESTRLEN (16)
 extern void callClientPacketHandler(char* data, uint16_t size, Client* client);
 extern void setClientPacketHandler(Client* client, void (*packet_handler)(char*, uint16_t, Client*));
+extern void (*getClientPacketHandler(Client* client))(char*, uint16_t, Client*);
 
 __END_DECLS
 
