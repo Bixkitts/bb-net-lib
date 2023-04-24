@@ -25,8 +25,10 @@ extern int listenForTCP(char *buffer, const uint16_t bufsize, Client *localhost,
 // Use this struct to create a localhost and remotehost.
 // The remotehost's IP doesn't matter when listening because
 // it gets overidden.
-extern Client* createClient(char *ip, uint16_t port);       
+extern Client* createClient(char *ip, uint16_t port, void (*packet_handler)(char*, uint16_t, Client*));       
 extern char* getIP(Client* client); // Returns a string representation of the IP address in the client of INET_ADDRESTRLEN (16)
+extern void callClientPacketHandler(char* data, uint16_t size, Client* client);
+extern void setClientPacketHandler(Client* client, void (*packet_handler)(char*, uint16_t, Client*));
 
 __END_DECLS
 

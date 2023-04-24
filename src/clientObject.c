@@ -10,7 +10,7 @@
 
 #include "clientObject.h"
 
-Client* createClient(const char *ip, const uint16_t port, void (*packet_handler)(char*, uint16_t, Client*))
+Client* createClient(const char *ip, const uint16_t port)
 {
     Client* client;
     client = (struct Client*) malloc(sizeof(struct Client));
@@ -22,6 +22,8 @@ Client* createClient(const char *ip, const uint16_t port, void (*packet_handler)
     client->address.sin_family = AF_INET;
     client->address.sin_port = htons(port);
     inet_pton(AF_INET, ip, &client->address.sin_addr);
+    
+    setClientPacketHandler(client, NULL);
 
     return client;
 }
@@ -61,12 +63,12 @@ socketfd getSocket(const Client* client)
     return client->associatedSocket;
 }
 
-void callPacketHandler(char* data, uint16_t size, Client* client)
+void callClientPacketHandler(char* data, uint16_t size, Client* client)
 {
     (*client->packet_handler)(data, size, client);
 }
 
-void setPacketHandler(Client* client, void (*packet_handler)(char*, uint16_t, Client*))
+void setClientPacketHandler(Client* client, void (*packet_handler)(char*, uint16_t, Client*))
 {
     client->packet_handler = packet_handler;
 }
