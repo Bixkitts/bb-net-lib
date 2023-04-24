@@ -16,9 +16,10 @@ typedef struct Client   // Structure that can be expanded and used to hold any n
     socketfd associatedSocket;          // Socket that gets associated with this client.
                                         // This allows the socket from a connection 
                                         // to be saved and reused!
+    void (*packet_handler)(char*, uint16_t, struct Client*);
 } Client;
 
-BBNETAPI extern Client* createClient(const char *ip, const uint16_t port);  // Creates a client with an ip and port
+BBNETAPI extern Client* createClient(const char *ip, const uint16_t port, void (*packet_handler)(char*, uint16_t, Client*));
 BBNETAPI extern void removeClient(Client* client);                          // Removes a client, closing the socket and freeing the memory
 BBNETAPI extern char* getIP(Client* client);                                // Returns a string representation of the IP address in the client
 
@@ -28,5 +29,7 @@ extern void unsetListening(Client* client);        // Unsets the bListen boolean
 extern bool isListening(const Client* client);
 extern void setSocket(Client* client, socketfd sockfd);
 extern socketfd getSocket(const Client* client);
+extern void callPacketHandler(char* data, uint16_t size, Client* client);
+extern void setPacketHandler(Client* client, void (*packet_handler)(char*, uint16_t, Client*));
 
 #endif
