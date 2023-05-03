@@ -31,6 +31,9 @@ extern void callClientPacketHandler(char* data, uint16_t size, Client* client);
 extern void setClientPacketHandler(Client* client, void (*packet_handler)(char*, uint16_t, Client*));
 extern void (*getClientPacketHandler(Client* client))(char*, uint16_t, Client*);
 
+extern void setSocket(Client* client, socketfd sockfd);
+extern socketfd getSocket(const Client* client);
+
 __END_DECLS
 
 #endif
