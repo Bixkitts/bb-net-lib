@@ -99,12 +99,6 @@ static int receiveTCPpackets(char *buffer, const uint16_t bufsize, Client* remot
         numBytes = recv(getSocket(remotehost), buffer, bufsize, 0);
         buffer[numBytes] = '\0'; // Null terminate the received data
 
-        if (numBytes == 0) 
-        {
-            printf("Transmission finished\n");
-            break;
-        }
-
         packet_handler(buffer, bufsize, remotehost);
     }
     closeSocket(getSocket(remotehost));
