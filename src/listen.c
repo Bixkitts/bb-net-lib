@@ -65,27 +65,18 @@ int listenForUDP(char *buffer, const uint16_t bufsize, Client *localhost, Client
 
 int listenForTCP(char *buffer, const uint16_t bufsize, Client *localhost, Client *remotehost, void (*packet_handler)(char*, uint16_t, Client*))
 {
-    const socketfd sockfd = createSocket(SOCK_DEFAULT_TCP);
+    setSocket(localhost, createSocket(SOCK_DEFAULT_TCP));
 
-    struct timeval timeout;
-    timeout.tv_sec = 5;   // 5 seconds
-    timeout.tv_usec = 0;  // 0 microseconds
-
-    if (FAILURE(setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout)))) 
-    {
-        perror("setsockopt");
-    }
-
-    if (FAILURE(bindSocket(sockfd, localhost)))
+    if (FAILURE(bindSocket(getSocket(localhost), localhost)))
     {
         perror("Failed to listen for TCP \n");
         return ERROR;
     }
 
     setListening(localhost);
-    setListening(remotehost);
+
     // Still need to patch this up for multiple conections
-    if (FAILURE(listen(sockfd, SOCK_BACKLOG))) 
+    if (FAILURE(listen(getSocket(localhost), SOCK_BACKLOG))) 
     {
         printf("Error: listen() failed with errno %d: %s\n", errno, strerror(errno));
         return ERROR;
@@ -94,13 +85,25 @@ int listenForTCP(char *buffer, const uint16_t bufsize, Client *localhost, Client
     socklen_t len = sizeof(remotehost->address);
     struct sockaddr* remoteAddress = ( struct sockaddr *)&remotehost->address;
 
-    // Accept incoming  from remote host
-    setSocket(remotehost, createSocket(accept(sockfd, remoteAddress, &len)));
+    while(isListening(localhost)) 
+    {
+        // Accept incoming  from remote host
+        setSocket(remotehost, createSocket(accept(getSocket(localhost), remoteAddress, &len)));
+        setListening(remotehost);
 
-    // Receive TCP packets from the connected remote host
-    receiveTCPpackets(buffer, bufsize, remotehost, localhost, packet_handler);
+        struct timeval timeout;
+        timeout.tv_sec = 5;   // 5 seconds
+        timeout.tv_usec = 0;  // 0 microseconds
+        if (FAILURE(setsockopt(getSocket(remotehost), SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout)))) 
+        {
+            perror("\nSetsockopt error");
+        }
 
-    closeSocket(sockfd);
+        // Receive TCP packets from the connected remote host
+        receiveTCPpackets(buffer, bufsize, remotehost, localhost, packet_handler);
+    }
+
+    closeSocket(getSocket(localhost));
 
     if (isListening(localhost))
         unsetListening(localhost);
@@ -114,26 +117,29 @@ static int receiveTCPpackets(char *buffer, const uint16_t bufsize, Client* remot
 {
     int64_t numBytes;
     // Receive data continuously until client closes 
-    while(isListening(localhost) && isListening(remotehost)) 
-    {
         // Receive TCP packet from client and store in buffer
+    while(isListening(remotehost))
+    {
         numBytes = recv(getSocket(remotehost), buffer, bufsize, 0);
-        if (numBytes == 0)
-        {
-            (void)printf("\nClient negotiated connection close/timeout\n");
-            unsetListening(localhost);
-        }
-        else if (numBytes == -1)
-        {
-            (void)printf("\nError: recv() failed with errno %d: %s\n", errno, strerror(errno));
-            unsetListening(localhost);
-            return ERROR;
-        }
-        else
+        if (numBytes > 0)
         {
             buffer[numBytes] = '\0'; // Null terminate the received data
             packet_handler(buffer, bufsize, remotehost);
         }
+        else if (numBytes == 0)
+        {
+            (void)printf("\nClient negotiated connection close/timeout\n");
+            closeSocket(getSocket(remotehost));
+            unsetListening(remotehost);
+        }
+        else if (numBytes == -1)
+        {
+            (void)printf("\nError: recv() failed with errno %d: %s\n", errno, strerror(errno));
+            closeSocket(getSocket(remotehost));
+            unsetListening(remotehost);
+            return ERROR;
+        }
     }
+    closeSocket(getSocket(remotehost));
     return SUCCESS;
 }

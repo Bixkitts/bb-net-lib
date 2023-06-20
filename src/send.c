@@ -36,6 +36,7 @@ int sendDataTCP(const char *data, const uint16_t datasize, Client *remotehost)
     if (status == -1) 
     {
         perror("Failed to send TCP message\n");
+        unsetListening(remotehost);
         return ERROR;
     }
     if (status == 0)
@@ -48,6 +49,7 @@ int sendDataTCP(const char *data, const uint16_t datasize, Client *remotehost)
 
 int connectToTCP(Client *remotehost)
 {
+    // rewrite this to use localhost socket
     socketfd sockfd;
     
     struct sockaddr* remoteAddress = 
