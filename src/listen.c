@@ -18,7 +18,17 @@ static int receiveTCPpackets(char *buffer, const uint16_t bufsize, Client* remot
 int listenForUDP(char *buffer, const uint16_t bufsize, Client *localhost, Client *remotehost, void (*packet_handler)(char*, uint16_t, Client*))    //Should be called on it's own thread as the while loop is blocking 
 {    
     const socketfd sockfd = createSocket(SOCK_DEFAULT_UDP);
-    if(FAILURE(bindSocket(sockfd, localhost)))
+
+    struct timeval timeout;
+    timeout.tv_sec = 5;   // 5 seconds
+    timeout.tv_usec = 0;  // 0 microseconds
+
+    if (FAILURE(setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout)))) 
+    {
+        perror("setsockopt");
+    }
+
+    if (FAILURE(bindSocket(sockfd, localhost)))
     {
         perror("Failed to listen for UDP \n");
         return ERROR;
@@ -45,9 +55,9 @@ int listenForUDP(char *buffer, const uint16_t bufsize, Client *localhost, Client
         packet_handler(buffer, bufsize, remotehost);
     }
 
-    if(isListening(localhost))
+    if (isListening(localhost))
         unsetListening(localhost);
-    if(isListening(remotehost))
+    if (isListening(remotehost))
         unsetListening(remotehost);
 
     return SUCCESS;
@@ -56,7 +66,17 @@ int listenForUDP(char *buffer, const uint16_t bufsize, Client *localhost, Client
 int listenForTCP(char *buffer, const uint16_t bufsize, Client *localhost, Client *remotehost, void (*packet_handler)(char*, uint16_t, Client*))
 {
     const socketfd sockfd = createSocket(SOCK_DEFAULT_TCP);
-    if(FAILURE(bindSocket(sockfd, localhost)))
+
+    struct timeval timeout;
+    timeout.tv_sec = 5;   // 5 seconds
+    timeout.tv_usec = 0;  // 0 microseconds
+
+    if (FAILURE(setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout)))) 
+    {
+        perror("setsockopt");
+    }
+
+    if (FAILURE(bindSocket(sockfd, localhost)))
     {
         perror("Failed to listen for TCP \n");
         return ERROR;
@@ -82,9 +102,9 @@ int listenForTCP(char *buffer, const uint16_t bufsize, Client *localhost, Client
 
     closeSocket(sockfd);
 
-    if(isListening(localhost))
+    if (isListening(localhost))
         unsetListening(localhost);
-    if(isListening(remotehost))
+    if (isListening(remotehost))
         unsetListening(remotehost);
 
     return SUCCESS;

@@ -30,12 +30,18 @@ int sendDataUDP(const char *data, const uint16_t datasize, Client *remotehost)
     return SUCCESS;
 }
 
-int sendDataTCP(const char *data, const uint16_t datasize, const Client *remotehost)
+int sendDataTCP(const char *data, const uint16_t datasize, Client *remotehost)
 {
-    if (FAILURE(send(getSocket(remotehost), data, datasize, 0))) 
+    int status = send(getSocket(remotehost), data, datasize, 0);
+    if (status == -1) 
     {
         perror("Failed to send TCP message\n");
         return ERROR;
+    }
+    if (status == 0)
+    {
+        (void)printf("Connection closed by peer \n");
+        unsetListening(remotehost);
     }
     return SUCCESS;
 }
