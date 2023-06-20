@@ -33,6 +33,7 @@ extern void (*getClientPacketHandler(Client* client))(char*, uint16_t, Client*);
 
 extern void setSocket(Client* client, socketfd sockfd);
 extern socketfd getSocket(const Client* client);
+extern void unsetListening(Client* client);
 
 __END_DECLS
 

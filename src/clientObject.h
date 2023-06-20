@@ -28,7 +28,7 @@ BBNETAPI extern void (*getClientPacketHandler(Client* client))(char*, uint16_t, 
 
 // Checking or setting an interface for listening
 extern void setListening(Client* client);       // Sets the bListen boolean
-extern void unsetListening(Client* client);        // Unsets the bListen boolean
+BBNETAPI extern void unsetListening(Client* client);        // Unsets the bListen boolean
 extern bool isListening(const Client* client);
 BBNETAPI extern void setSocket(Client* client, socketfd sockfd);
 BBNETAPI extern socketfd getSocket(const Client* client);
