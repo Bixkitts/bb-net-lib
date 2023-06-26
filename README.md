@@ -7,7 +7,8 @@ It is built on the Linux socket headers
 - run "cmake .." and wait for completion
 - run "cmake --build . --target install" and wait for completion
 
-The library will be installed in the "install" folder in the base directory.
+The library will be installed in the "install" folder in the base directory
+if it isn't installed to the default (/usr/lib).
 Utilise it by adding the following lines to your project's CMakeLists.txt:
 
 - find_package(bbnetlib 0.1 CONFIG REQUIRED)
