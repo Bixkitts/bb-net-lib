@@ -13,3 +13,6 @@ Utilise it by adding the following lines to your project's CMakeLists.txt:
 
 - find_package(bbnetlib 0.1 CONFIG REQUIRED)
 - target_link_libraries(${PROJECT_NAME} PRIVATE netlib::bbnetlib)
+
+## Using in a Project
+To use this in a project, it's easy to either install it or add it as a git submodule
