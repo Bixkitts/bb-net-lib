@@ -1,4 +1,5 @@
 #include <netinet/in.h>
+#include <pthread.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -7,8 +8,11 @@
 #include <arpa/inet.h>
 #include <strings.h>
 #include <unistd.h>
+#include <string.h>
 
 #include "clientObject.h"
+
+static pthread_mutex_t listenMutex = PTHREAD_MUTEX_INITIALIZER;
 
 Client* createClient(const char *ip, const uint16_t port)
 {
@@ -27,6 +31,16 @@ Client* createClient(const char *ip, const uint16_t port)
 
     return client;
 }
+
+void copyClient(Client* dstClient, Client* srcClient)
+{
+    Client* newClient = (Client*)malloc(sizeof(Client));
+    if (newClient == NULL) {
+        exit(1);
+    }
+    // NOTE: watch out if you modify Client!
+    memcpy(newClient, srcClient, sizeof(Client));
+}
 char* getIP(Client* client)
 {
     char* ip_str = (char*) malloc(INET_ADDRSTRLEN * sizeof(char));
@@ -40,6 +54,10 @@ void removeClient(Client* client)
 
 void unsetListening(Client* client)
 {
+    // Should be fine without mutex lock,
+    // is volatile and will only ever
+    // be UNSET asyncronously to break
+    // out of a loop, and not set.
     client->bListen = 0;
 }
 
