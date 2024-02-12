@@ -15,6 +15,6 @@ extern socketfd createSocket (socketfd value);       // Create a new socket
                                                      // Pass SOCK_DEFAULT for a plain IP socket
 extern void     closeSocket  (socketfd socket);
 extern int      bindSocket   (socketfd sockfd, 
-                              Client* localhost);
+                              Host* localhost);
 
 #endif

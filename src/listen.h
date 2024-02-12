@@ -7,10 +7,10 @@
 #include "socketsNetLib.h"
 #include "defines.h"
 
-BBNETAPI int listenForUDP(Client *localhost, 
-                          void (*packet_handler)(char*, uint16_t, Client*));
+BBNETAPI int listenForUDP(Host *localhost, 
+                          void (*packet_handler)(char*, int16_t, Host*));
 
-BBNETAPI int listenForTCP(Client *localhost, 
-                          void (*packet_handler)(char*, uint16_t, Client*));
+BBNETAPI int listenForTCP(Host *localhost, 
+                          void (*packet_handler)(char*, int16_t, Host*));
 
 #endif

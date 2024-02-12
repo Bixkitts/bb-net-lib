@@ -11,4 +11,16 @@
 
 #define BITS_PER_BYTE  8
 
+// The maximum size of individual packets
+// coming in from UDP or TCP.
+#define PACKET_BUFFER_SIZE 1024
+
+typedef enum {
+    STR_ERROR_UNKNOWN,
+    STR_ERROR_MALLOC,
+    STR_ERROR_COUNT
+}errStringEnum;
+
+extern const char* errStrings[];
+
 #endif

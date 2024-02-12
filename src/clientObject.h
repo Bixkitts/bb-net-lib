@@ -1,5 +1,5 @@
-#ifndef CLIENTOBJECT
-#define CLIENTOBJECT
+#ifndef hostOBJECT
+#define hostOBJECT
 
 #include <stdbool.h>
 #include <sys/socket.h>
@@ -10,38 +10,38 @@
 #include "socketfd.h"
 
 
-typedef struct Client   // Structure that can be expanded and used to hold any needed info
+typedef struct Host  // Structure that can be expanded and used to hold any needed info
 {
     struct sockaddr_in address;         // The socket it contains (IP and port)
-    volatile bool      bListen;         // Is this client supposed to be currently listening on a thread 
-    socketfd           associatedSocket;// Socket that gets associated with this client.
+    volatile bool      bListen;         // Is this host supposed to be currently listening on a thread 
+    socketfd           associatedSocket;// Socket that gets associated with this host.
                                         // This allows the socket from a connection 
                                         // to be saved and reused!
     SSL               *ssl;             // Not NULL if we're connected over SSL
 
-    void (*packet_handler)(char*, uint16_t, struct Client*);
-} Client;
+    void (*packet_handler)(char*, uint16_t, struct Host*);
+} Host;
 
-BBNETAPI extern Client  *createClient            (const char *ip, 
-                                                  const uint16_t port);
-BBNETAPI extern void     removeClient            (Client* client);       // Removes a client, closing the socket and freeing the memory
-BBNETAPI extern char    *getIP                   (Client* client);       // Returns a string representation of the IP address in the client
-BBNETAPI extern void     callClientPacketHandler (char* data, 
-                                                  uint16_t size, 
-                                                  Client* client);
-BBNETAPI extern void     setClientPacketHandler  (Client* client, 
-                                                  void (*packet_handler)(char*, uint16_t, Client*));
-BBNETAPI extern void     copyClient              (Client* dstClient, 
-                                                  Client* srcClient);
+BBNETAPI extern Host    *createHost            (const char *ip, 
+                                                const uint16_t port);
+BBNETAPI extern void     deleteHost            (Host* host);       // Removes a client, closing the socket and freeing the memory
+BBNETAPI extern char    *getIP                 (Host* host);       // Returns a string representation of the IP address in the client
+BBNETAPI extern void     callHostPacketHandler (char* data, 
+                                                uint16_t size, 
+                                                Host* host);
+BBNETAPI extern void     setHostPacketHandler  (Host* host, 
+                                                void (*packet_handler)(char*, uint16_t, Host*));
+BBNETAPI extern void     copyHost              (Host* dstHost, 
+                                                Host* srcHost);
 
-BBNETAPI extern void   (*getClientPacketHandler  (Client* client)) (char*, uint16_t, Client*);
+BBNETAPI extern void   (*getHostPacketHandler  (Host* host)) (char*, uint16_t, Host*);
 
 // Checking or setting an interface for listening
-extern void              setListening            (Client* client);        // Sets the bListen boolean
-BBNETAPI extern void     unsetListening          (Client* client);        // Unsets the bListen boolean
-extern bool              isListening             (const Client* client);
-BBNETAPI extern void     setSocket               (Client* client, 
+extern void              setCommunicating        (Host* host);        // Sets the bListen boolean
+BBNETAPI extern void     closeConnections        (Host* host);        // Unsets the bListen boolean
+extern bool              isCommunicating         (const Host* host);
+BBNETAPI extern void     setSocket               (Host* host, 
                                                   socketfd sockfd);
-BBNETAPI extern socketfd getSocket               (const Client* client);
+BBNETAPI extern socketfd getSocket               (const Host* host);
 
 #endif

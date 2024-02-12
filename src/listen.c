@@ -11,28 +11,31 @@
 
 #include "clientObject.h"
 #include "listen.h"
+#include "defines.h"
 #include "socketsNetLib.h"
 #include "threadPool.h"
 
 
 typedef struct {
-    char     *buffer;
-    uint16_t  bufsize;
-    Client    localhost;
-    Client    remotehost;
-    void    (*packet_handler)(char*, uint16_t, Client*);
+    Host    localhost;
+    Host    remotehost;
+    void    (*packet_handler)(char*, int16_t, Host*);
 } packetReceptionArgs;
 
 static void receiveTCPpackets          (packetReceptionArgs *args);
-static void destroyPacketReceptionArgs (packetReceptionArgs *args);
+static void destroyPacketReceptionArgs (packetReceptionArgs **args);
 
-int listenForUDP(Client *localhost, void (*packet_handler)(char*, uint16_t, Client*))    //Should be called on it's own thread as the while loop is blocking 
+int listenForUDP(Host *localhost, void (*packet_handler)(char*, int16_t, Host*))    //Should be called on it's own thread as the while loop is blocking 
 {    
     const socketfd sockfd     = createSocket(SOCK_DEFAULT_UDP);
-    Client         remotehost = { 0 };
-    int64_t        numBytes   = 0;
+    Host           remotehost = { 0 };
+    int16_t        numBytes   = 0;
     socklen_t      len        = 0;
-
+    char          *buffer     = NULL;
+    // Need to track the size of the buffer
+    // we'll be using to hold received data.
+    // We may need to make it bigger with reallocations.
+    int            allocSize  = 0 * PACKET_BUFFER_SIZE;
 
 
     struct timeval timeout;
@@ -50,30 +53,47 @@ int listenForUDP(Client *localhost, void (*packet_handler)(char*, uint16_t, Clie
         return ERROR;
     }
 
-    setListening(localhost);
-    setListening(&remotehost);
+    setCommunicating(localhost);
+    setCommunicating(&remotehost);
 
     len = sizeof(localhost->address);
     // Need to cast the pointer to a sockaddr type to satisfy the syscall
     struct sockaddr* remoteAddress = ( struct sockaddr *)&remotehost.address;
 
-    while(isListening(localhost) && isListening(&remotehost)) // We can shut this down by calling unsetListeninging on the client
-    {
-        numBytes = recvfrom(sockfd, buffer, bufsize, MSG_WAITALL, remoteAddress, &len);
-        buffer[numBytes] = '\0';    // Null terminate the received data
+    buffer = (char*)malloc(PACKET_BUFFER_SIZE);
+    if (buffer == NULL) {
+        return ERROR;
+    }
+
+    while(isCommunicating(localhost)) {
+        numBytes = recvfrom(sockfd, 
+                            buffer, 
+                            PACKET_BUFFER_SIZE, 
+                            MSG_WAITALL, 
+                            remoteAddress, 
+                           &len);
+
+        if (numBytes < PACKET_BUFFER_SIZE) {
+            buffer[numBytes] = '\0';    // Null terminate the received data
+        }
 
         if (numBytes == 0) 
         {
             printf("Transmission finished\n");
             break;
         }
-        packet_handler(buffer, bufsize, remotehost);
+        // TODO: this is currently blocking and should run in it's own thread from
+        // the pool, but I don't need UDP right now and even if I did it should be _okay_
+        // for a small amount of hosts.
+        packet_handler(buffer, numBytes, &remotehost);
     }
 
-    if (isListening(localhost))
-        unsetListening(localhost);
-    if (isListening(remotehost))
-        unsetListening(remotehost);
+    if (isCommunicating(localhost)) {
+        closeConnections(localhost);
+    }
+    if (isCommunicating(&remotehost)) {
+        closeConnections(&remotehost);
+    }
 
     return SUCCESS;
 }
@@ -84,14 +104,14 @@ int listenForUDP(Client *localhost, void (*packet_handler)(char*, uint16_t, Clie
  * and listen until the localhost
  * is set not to listen any more.
  * */
-int listenForTCP(Client *localhost, 
-                 void (*packet_handler)(char*, uint16_t, Client*))
+int listenForTCP(Host *localhost, 
+                 void (*packet_handler)(char*, int16_t, Host*))
 {
     threadPool           localThreadPool = NULL;
     packetReceptionArgs *receptionArgs   = NULL;
     socklen_t            addrLen             = 0;
     struct sockaddr     *remoteAddress   = NULL;
-    Client               remotehost      = { 0 };
+    Host                 remotehost      = { 0 };
 
     initThreadPool (localThreadPool);
     setSocket      (localhost, createSocket(SOCK_DEFAULT_TCP));
@@ -102,15 +122,14 @@ int listenForTCP(Client *localhost,
         return ERROR;
     }
 
-    setListening(localhost);
-    // Still need to patch this up for multiple conections
+    setCommunicating(localhost);
     if (FAILURE(listen(getSocket(localhost), SOCK_BACKLOG))) {
         printf("Error: listen() failed with errno %d: %s\n", errno, strerror(errno));
         return ERROR;
     }
 
 
-    while(isListening(localhost)) 
+    while(isCommunicating(localhost)) 
     {
         addrLen       = sizeof(remotehost.address);
 
@@ -121,8 +140,8 @@ int listenForTCP(Client *localhost,
         // The socket file descriptor in "remotehost" becomes an accepted
         // TCP connection, configure it and pass it over
         // to the thread pool.
-        setSocket    (&remotehost, createSocket(accept(getSocket(localhost), remoteAddress, &addrLen)));
-        setListening (&remotehost);
+        setSocket        (&remotehost, createSocket(accept(getSocket(localhost), remoteAddress, &addrLen)));
+        setCommunicating (&remotehost);
 
         // Set a timeout on the socket.
         // The underlying system SHOULD close
@@ -147,10 +166,9 @@ int listenForTCP(Client *localhost,
         // Deep copy of hosts for thread-local processing
         // Buffer and bufsize filled later in the thread
         // while receiving data.
-        copyClient (&receptionArgs->remotehost, &remotehost);
-        copyClient (&receptionArgs->localhost, localhost);
+        copyHost (&receptionArgs->remotehost, &remotehost);
+        copyHost (&receptionArgs->localhost, localhost);
         receptionArgs->packet_handler = packet_handler;
-        // ------------------------------------------------
 
         // Process the TCP data in a thread, continue with this loop
         // accepting connections and getting valid socket
@@ -163,11 +181,11 @@ early_exit:
     destroyThreadPool (localThreadPool);
     closeSocket       (getSocket(localhost));
 
-    if (isListening(localhost)) {
-        unsetListening(localhost);
+    if (isCommunicating(localhost)) {
+        closeConnections(localhost);
     }
-    if (isListening(&remotehost)) {
-        unsetListening(&remotehost);
+    if (isCommunicating(&remotehost)) {
+        closeConnections(&remotehost);
     }
 
     return SUCCESS;
@@ -179,41 +197,28 @@ early_exit:
  */
 static void receiveTCPpackets(packetReceptionArgs *args) 
 {
-    int64_t numBytes;
-    // Receive data continuously until client closes 
-    // Receive TCP packet from client and store in buffer
-    while(isListening(&args->remotehost))
-    {
-        numBytes = recv(getSocket(&args->remotehost), args->buffer, args->bufsize, 0);
-        if (numBytes > 0)
-        {
-            args->buffer[numBytes] = '\0'; // Null terminate the received data
-            args->packet_handler(args->buffer, args->bufsize, &args->remotehost);
-        }
-        else if (numBytes == 0)
-        {
-            (void)printf("\nClient negotiated connection close/timeout\n");
-            closeSocket    (getSocket(&args->remotehost));
-            unsetListening (&args->remotehost);
-        }
-        else if (numBytes == -1)
-        {
-            (void)printf("\nError: recv() failed with errno %d: %s\n", errno, strerror(errno));
-            closeSocket    (getSocket(&args->remotehost));
-            unsetListening (&args->remotehost);
-            return;
-        }
+    int16_t  numBytes                   = 0;
+    char     buffer[PACKET_BUFFER_SIZE] = { 0 };   
+
+    while(isCommunicating(&args->remotehost)) {
+        numBytes       =  recv (getSocket(&args->remotehost), 
+                                buffer, 
+                                PACKET_BUFFER_SIZE, 
+                                0);
+        args->packet_handler (buffer, numBytes, &args->remotehost);
     }
     closeSocket                (getSocket(&args->remotehost));
-    destroyPacketReceptionArgs (args);
+    destroyPacketReceptionArgs (&args);
     return;
 }
 
 /*
  * Precondition that args pointer and members not NULL
  */
-static void destroyPacketReceptionArgs(packetReceptionArgs *args)
+static void destroyPacketReceptionArgs(packetReceptionArgs **args)
 {
-    free(args->buffer);
-    free(args);
+    if (*args != NULL) {
+        free(*args);
+        *args = NULL;
+    }
 }

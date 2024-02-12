@@ -14,84 +14,88 @@
 
 static pthread_mutex_t listenMutex = PTHREAD_MUTEX_INITIALIZER;
 
-Client* createClient(const char *ip, const uint16_t port)
+Host* createHost(const char *ip, const uint16_t port)
 {
-    Client* client;
-    client = (struct Client*) malloc(sizeof(struct Client));
-    unsetListening(client);
-    
-    bzero((char *) &client->address, sizeof(client->address));
+    Host* host = NULL;
 
-    //filling in the data of the client's ip.
-    client->address.sin_family = AF_INET;
-    client->address.sin_port = htons(port);
-    inet_pton(AF_INET, ip, &client->address.sin_addr);
-    
-    setClientPacketHandler(client, NULL);
+    host = (struct Host*)calloc(1, sizeof(struct Host));
+    if (host == NULL) {
+        perror(errStrings[STR_ERROR_MALLOC]);
+        return NULL;
+    }
+    //filling in the data of the host's ip.
+    host->address.sin_family = AF_INET;
+    host->address.sin_port   = htons(port);
 
-    return client;
+    inet_pton            (AF_INET, ip, &host->address.sin_addr);
+    setHostPacketHandler (host, NULL);
+
+    return host;
 }
 
-void copyClient(Client* dstClient, Client* srcClient)
+void copyHost(Host* dsthost, Host* srcClient)
 {
-    Client* newClient = (Client*)malloc(sizeof(Client));
-    if (newClient == NULL) {
+    Host* newhost = (Host*)malloc(sizeof(Host));
+    if (newhost == NULL) {
         exit(1);
     }
-    // NOTE: watch out if you modify Client!
-    memcpy(newClient, srcClient, sizeof(Client));
+    // NOTE: watch out if you modify host!
+    memcpy(newhost, srcClient, sizeof(Host));
 }
-char* getIP(Client* client)
+char* getIP(Host* host)
 {
     char* ip_str = (char*) malloc(INET_ADDRSTRLEN * sizeof(char));
-    inet_ntop(AF_INET, &(client->address.sin_addr), ip_str, INET_ADDRSTRLEN);
+    inet_ntop(AF_INET, &(host->address.sin_addr), ip_str, INET_ADDRSTRLEN);
     return ip_str;
 }
-void removeClient(Client* client)
+void destroyHost(Host** host)
 {
-    free(client);
+    if (*host != NULL) {
+        free(host);
+        *host = NULL;
+    }
 }
 
-void unsetListening(Client* client)
+void closeConnections(Host* host)
 {
     // Should be fine without mutex lock,
     // is volatile and will only ever
     // be UNSET asyncronously to break
     // out of a loop, and not set.
-    client->bListen = 0;
+    host->bListen = 0;
 }
 
-void setListening(Client* client)
+void setCommunicating(Host* host)
 {
-    client->bListen = 1;
+    host->bListen = 1;
 }
 
-bool isListening(const Client* client)
+bool isCommunicating(const Host* host)
 {
-    return client->bListen;
+    return host->bListen;
 }
 
-void setSocket(Client* client, socketfd sockfd)
+void setSocket(Host* host, socketfd sockfd)
 {
-    client->associatedSocket = sockfd;
+    host->associatedSocket = sockfd;
 }
 
-socketfd getSocket(const Client* client)
+socketfd getSocket(const Host* host)
 {
-    return client->associatedSocket;
+    return host->associatedSocket;
 }
 
-void callClientPacketHandler(char* data, uint16_t size, Client* client)
+void callHostPacketHandler(char* data, uint16_t size, Host* host)
 {
-    (*client->packet_handler)(data, size, client);
+    (*host->packet_handler)(data, size, host);
 }
 
-void setClientPacketHandler(Client* client, void (*packet_handler)(char*, uint16_t, Client*))
+void setHostPacketHandler(Host* host, void (*packet_handler)(char*, uint16_t, Host*))
 {
-    client->packet_handler = packet_handler;
+    host->packet_handler = packet_handler;
 }
 
-void (*getClientPacketHandler(Client* client))(char*, uint16_t, Client*)
+void (*getHostPacketHandler(Host* host))(char*, uint16_t, Host*)
 {
-    return client->packet_handler;
+    return host->packet_handler;
 }
