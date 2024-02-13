@@ -27,8 +27,6 @@ Host* createHost(const char *ip, const uint16_t port)
     host->address.sin_port   = htons(port);
 
     inet_pton            (AF_INET, ip, &host->address.sin_addr);
-    setHostPacketHandler (host, NULL);
-
     return host;
 }
 
@@ -79,19 +77,4 @@ void setSocket(Host* host, socketfd sockfd)
 socketfd getSocket(const Host* host)
 {
     return host->associatedSocket;
-}
-
-void callHostPacketHandler(char* data, uint16_t size, Host* host)
-{
-    (*host->packet_handler)(data, size, host);
-}
-
-void setHostPacketHandler(Host* host, void (*packet_handler)(char*, uint16_t, Host*))
-{
-    host->packet_handler = packet_handler;
-}
-
-void (*getHostPacketHandler(Host* host))(char*, uint16_t, Host*)
-{
-    return host->packet_handler;
 }

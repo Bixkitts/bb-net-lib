@@ -20,8 +20,6 @@ typedef struct Host  // Structure that can be expanded and used to hold any need
                                         // This allows the socket from a connection 
                                         // to be saved and reused!
     SSL               *ssl;             // Not NULL if we're connected over SSL
-
-    void (*packet_handler)(char*, uint16_t, struct Host*);
 } Host;
 
 BBNETAPI extern Host        *createHost            (const char *ip, 
@@ -32,12 +30,8 @@ BBNETAPI extern uint16_t     getPort               (Host* host);
 extern void                  callHostPacketHandler (char* data, 
                                                     uint16_t size, 
                                                     Host* host);
-BBNETAPI extern void         setHostPacketHandler  (Host* host, 
-                                                    void (*packet_handler)(char*, uint16_t, Host*));
 BBNETAPI extern void         copyHost              (Host* dstHost, 
                                                     Host* srcHost);
-
-extern void                (*getHostPacketHandler  (Host* host)) (char*, uint16_t, Host*);
 
 // Checking or setting an interface for listening
 extern void                  setCommunicating      (Host* host);        // Sets the bListen boolean
