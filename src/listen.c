@@ -13,6 +13,7 @@
 #include "defines.h"
 #include "socketsNetLib.h"
 #include "threadPool.h"
+#include "send.h"
 
 
 typedef struct {
@@ -36,12 +37,17 @@ int listenForUDP(Host *localhost, void (*packet_handler)(char*, ssize_t, Host*))
     timeout.tv_sec = 5;   // 5 seconds
     timeout.tv_usec = 0;  // 0 microseconds
 
-    if (FAILURE(setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout)))) 
+    if (FAILURE(setsockopt(sockfd, 
+                           SOL_SOCKET, 
+                           SO_RCVTIMEO, 
+                           (char *)&timeout, 
+                           sizeof(timeout)))) 
     {
         perror("setsockopt");
     }
 
-    if (FAILURE(bindSocket(sockfd, localhost)))
+    if (FAILURE(bindSocket(sockfd, 
+                           localhost)))
     {
         perror("Failed to listen for UDP \n");
         return ERROR;
@@ -66,8 +72,7 @@ int listenForUDP(Host *localhost, void (*packet_handler)(char*, ssize_t, Host*))
             buffer[numBytes] = '\0';    // Null terminate the received data
         }
 
-        if (numBytes == 0) 
-        {
+        if (numBytes == 0) {
             printf("Transmission finished\n");
             break;
         }
@@ -98,7 +103,7 @@ int listenForTCP(Host *localhost,
 {
     threadPool           localThreadPool = NULL;
     packetReceptionArgs *receptionArgs   = NULL;
-    socklen_t            addrLen             = 0;
+    socklen_t            addrLen         = 0;
     struct sockaddr     *remoteAddress   = NULL;
     Host                 remotehost      = { 0 };
 
@@ -195,6 +200,9 @@ static void receiveTCPpackets(packetReceptionArgs *args)
                                 0);
         args->packet_handler (buffer, numBytes, &args->remotehost);
     }
+    // Let the remote host know we're closing connection
+    sendDataTCP                (NULL, 0, &args->remotehost);
+
     closeSocket                (getSocket(&args->remotehost));
     destroyPacketReceptionArgs (&args);
     return;

@@ -33,7 +33,7 @@ And then to update this library while it's a submodule:
 Add this to your CMakeLists.txt
 - target_link_libraries(${PROJECT_NAME} PRIVATE bbnetlib)
 
-Now you can include <bbnetlib.h> in your own project and get to coding.
+Now you can include <b><bbnetlib.h></b> in your own project and get to coding.
 
 
 If you're feeling fancy:
@@ -44,7 +44,7 @@ If you <b>don't have cmake</b>, well then link the library via your own methods.
 ### Download a Release Build
 - Download a release through the browser or wget/curl
 - But the library and include header into a place your own project can use it
-- include "bbnetlib.h" and link libbbnetlib.
+- include <b>"bbnetlib.h"</b> and link libbbnetlib.
 
 ### Build it Yourself
 Follow the steps to <b>Install and Include It</b>,
@@ -53,6 +53,72 @@ except you do
 
 without --target install.
 Then do with the resultant libbbnetlib.a and include header as you see fit.
+
+## No, How Do I Write With It?
+Here's TCP:
+```c
+// We want to store the localhost.
+// I've used a global, but you can
+// use accessors or a database or anything.
+Host localHost = NULL;
+
+void yourTCPpacketHandler (char* receivedPacketData, 
+                           ssize_t sizeOfPacket, 
+                           Host hostThatSentThePacket)
+{
+    Host remotehost = hostThatSentThePacket;
+    // Get the IP of the remotehost:
+    char ip[IP_ADDR_LEN] = getIp(remotehost);
+    // Send some data back
+    const char data[] = "Hello there!";
+    ssize_t    dataSize = 13;
+    sendDataTCP(data, 13, remotehost);
+    // TCP:
+    // We've decided we're completely done with this host,
+    // Stop communicating with them.
+    closeConnections(remotehost);
+}
+int main() 
+{
+    localhost = createHost("YOUR.IP", 1234);
+    listenTCP (localhost, yourTCPpacketHandler);
+    return 0;
+}
+```
+Here's UDP, it's almost the same:
+```c
+// We want to store the localhost.
+// I've used a global, but you can
+// use accessors or a database or anything.
+Host localHost = NULL;
+
+void yourUDPpacketHandler (char* receivedPacketData, 
+                           ssize_t sizeOfPacket, 
+                           Host hostThatSentThePacket)
+{
+    Host remotehost = hostThatSentThePacket;
+    // Get the IP of the remotehost:
+    char ip[IP_ADDR_LEN] = getIp(remotehost);
+    // Send some data back
+    const char data[] = "Hello there!";
+    ssize_t    dataSize = 13;
+    // UDP is connectionless, we just send a packet
+    // back to a remote host.
+    sendDataUDP(data, 13, remotehost);
+}
+int main() 
+{
+    localhost = createHost("YOUR.IP", 1234);
+    listenUDP (localhost, yourUDPpacketHandler);
+    return 0;
+}
+```
+
+Maximum packet size is <b>1024 bytes</b>, so you know it's a full packet when that's the received size.
+
+Receiving a <b>packet size of 0</b> in the packetHandler means the remote host negotiated a disconnect,
+
+and <b>-1 packet size</b> means an error (typically a timeout).
 
 ## How Do I Help?
 Hit me up and help me write it.

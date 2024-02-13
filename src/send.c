@@ -24,14 +24,12 @@ int sendDataUDP(const char *data, const ssize_t datasize, Host *remotehost)
 int sendDataTCP(const char *data, const ssize_t datasize, Host *remotehost)
 {
     int status = send(getSocket(remotehost), data, datasize, 0);
-    if (status == -1) 
-    {
+    if (status == -1) {
         perror("Failed to send TCP message");
         closeConnections(remotehost);
         return ERROR;
     }
-    if (status == 0)
-    {
+    if (status == 0) {
         perror("Connection closed by peer");
         closeConnections(remotehost);
     }
