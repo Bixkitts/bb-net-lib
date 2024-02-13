@@ -2,5 +2,6 @@
 
 const char *const errStrings [STR_ERROR_COUNT] = {
     "Unknown Error",
-    "Malloc Error"
+    "Malloc Error",
+    "host cache index out of bounds"
 };

@@ -15,6 +15,8 @@
 #include "threadPool.h"
 #include "send.h"
 
+threadPool TCPthreadPool = { 0 };
+threadPool UDPthreadPool = { 0 };
 
 typedef struct {
     Host    localhost;
@@ -101,13 +103,12 @@ int listenForUDP(Host *localhost, void (*packet_handler)(char*, ssize_t, Host*))
 int listenForTCP(Host *localhost, 
                  void (*packet_handler)(char*, ssize_t, Host*))
 {
-    threadPool           localThreadPool = NULL;
     packetReceptionArgs *receptionArgs   = NULL;
     socklen_t            addrLen         = 0;
     struct sockaddr     *remoteAddress   = NULL;
     Host                 remotehost      = { 0 };
 
-    initThreadPool (localThreadPool);
+    initThreadPool (TCPthreadPool);
     setSocket      (localhost, createSocket(SOCK_DEFAULT_TCP));
 
     if (FAILURE(bindSocket(getSocket(localhost), localhost)))
@@ -159,19 +160,19 @@ int listenForTCP(Host *localhost,
         // Deep copy of hosts for thread-local processing
         // Buffer and bufsize filled later in the thread
         // while receiving data.
-        copyHost (&receptionArgs->remotehost, &remotehost);
-        copyHost (&receptionArgs->localhost, localhost);
+        fastCopyHost (&receptionArgs->remotehost, &remotehost);
+        fastCopyHost (&receptionArgs->localhost, localhost);
         receptionArgs->packet_handler = packet_handler;
 
         // Process the TCP data in a thread, continue with this loop
         // accepting connections and getting valid socket
         // file descriptors to pass to threads.
         // remotehost data is passed off here.
-        addTaskToThreadPool(localThreadPool, (void*)receiveTCPpackets, &receptionArgs);
+        addTaskToThreadPool(TCPthreadPool, (void*)receiveTCPpackets, &receptionArgs);
     }
 
 early_exit: 
-    destroyThreadPool (localThreadPool);
+    destroyThreadPool (TCPthreadPool);
     closeSocket       (getSocket(localhost));
 
     if (isCommunicating(localhost)) {

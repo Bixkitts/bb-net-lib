@@ -10,9 +10,13 @@
 #include "defines.h"
 #include "socketfd.h"
 
+#define MAX_HOST_CACHES     16
+#define MAX_HOSTS_PER_CACHE 1024
+
 
 typedef struct Host  // Structure that can be expanded and used to hold any needed info
 {
+    int                id;
     struct sockaddr_in address;         // The socket it contains (IP and port)
     const char*        addressStr[INET_ADDRSTRLEN];
     volatile bool      bListen;         // Is this host supposed to be currently listening on a thread 
@@ -30,8 +34,21 @@ BBNETAPI extern uint16_t     getPort               (Host* host);
 extern void                  callHostPacketHandler (char* data, 
                                                     uint16_t size, 
                                                     Host* host);
+// Not thread safe
+extern void                  fastCopyHost          (Host* dstHost, 
+                                                    Host* srcHost);
+// Thread safe copy
 BBNETAPI extern void         copyHost              (Host* dstHost, 
                                                     Host* srcHost);
+
+// Host Caching functions
+BBNETAPI extern void         cacheHost             (Host* host, 
+                                                    int cacheIndex);
+BBNETAPI extern void         clearHostCache        (int cacheIndex);
+extern const int             getCacheOccupancy     (int cacheIndex);
+extern Host                 *getHostFromCache      (int cacheIndex,
+                                                    int hostIndex);
+extern int                   getHostID             (Host *host);
 
 // Checking or setting an interface for listening
 extern void                  setCommunicating      (Host* host);        // Sets the bListen boolean

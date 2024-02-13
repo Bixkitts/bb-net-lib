@@ -67,12 +67,23 @@ void yourTCPpacketHandler (char* receivedPacketData,
                            Host hostThatSentThePacket)
 {
     Host remotehost = hostThatSentThePacket;
+    // Maybe we want to save the remote host 
+    // to a buffer for future reference,
+    // like multicasts
+    copyHost (cachedRemoteHost, remotehost);
     // Get the IP of the remotehost:
     char ip[IP_ADDR_LEN] = getIp(remotehost);
     // Send some data back
     const char data[] = "Hello there!";
     ssize_t    dataSize = 13;
-    sendDataTCP(data, 13, remotehost);
+    sendDataTCP(data, datasize, remotehost);
+    // We can cache this host
+    // in up to 16 caches for
+    // later multicasts!
+    int cacheIndex = 0;
+    cacheHost(remotehost, cacheIndex);
+    // Send the same packet to a cache full of hosts
+    multicastTCP(data, datasize, cacheIndex);
     // TCP:
     // We've decided we're completely done with this host,
     // Stop communicating with them.
@@ -98,11 +109,17 @@ Here's UDP, it's almost the same:
 // use accessors or a database or anything.
 Host localHost = NULL;
 
+Host cachedRemoteHost;
+
 void yourUDPpacketHandler (char* receivedPacketData, 
                            ssize_t sizeOfPacket, 
                            Host hostThatSentThePacket)
 {
     Host remotehost = hostThatSentThePacket;
+    // Maybe we want to save the remote host 
+    // to a buffer for future reference,
+    // like multicasts
+    copyHost (cachedRemoteHost, remotehost);
     // Get the IP of the remotehost:
     char ip[IP_ADDR_LEN] = getIp(remotehost);
     // Send some data back
