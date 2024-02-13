@@ -105,10 +105,3 @@ void destroyThreadPool(threadPool_T *pool)
     pthread_mutex_destroy (&pool->lock);
     pthread_cond_destroy  (&pool->notify);
 }
-
-// Example task function
-static void example_task(void *argument) 
-{
-    int *value = (int *)argument;
-    printf("Task executing with argument: %d\n", *value);
-}

@@ -35,11 +35,11 @@ extern Host  createHost           (char *ip,
 extern void  destroyHost          (Host *host);
 
 // IP string is always length 16
-extern char     *getIP                (Host host);
-extern uint16_t  getPort              (Host host);
-extern void      setHostPacketHandler (Host host, 
+extern const char *getIP                (Host host);
+extern uint16_t    getPort              (Host host);
+extern void        setHostPacketHandler (Host host, 
                                        void (*packet_handler)(char*, int16_t, Host));
-extern void      closeConnections     (Host host);
+extern void        closeConnections     (Host host);
 
 __END_DECLS
 

@@ -47,7 +47,7 @@ uint16_t getPort(Host* host)
 void destroyHost(Host** host)
 {
     if (*host != NULL) {
-        free(host);
+        free(*host);
         *host = NULL;
     }
 }

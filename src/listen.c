@@ -1,6 +1,5 @@
 #include <sys/types.h>
 #include <stdio.h>
-#include <stdint.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/socket.h>
@@ -32,11 +31,6 @@ int listenForUDP(Host *localhost, void (*packet_handler)(char*, ssize_t, Host*))
     ssize_t        numBytes                   = 0;
     socklen_t      len                        = 0;
     char           buffer[PACKET_BUFFER_SIZE] = { 0 };
-    // Need to track the size of the buffer
-    // we'll be using to hold received data.
-    // We may need to make it bigger with reallocations.
-    int            allocSize  = 0 * PACKET_BUFFER_SIZE;
-
 
     struct timeval timeout;
     timeout.tv_sec = 5;   // 5 seconds

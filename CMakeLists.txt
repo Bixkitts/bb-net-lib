@@ -1,23 +1,21 @@
-cmake_minimum_required(VERSION 3.0)
-set(namespace "netlib")
+cmake_minimum_required(VERSION 3.28)
+set    (namespace "netlib")
 project("bbnetlib"
 	DESCRIPTION "Minimal IP Data transfer library"
 	VERSION 0.1
 )
 
-add_library(${PROJECT_NAME} STATIC)
+# So language servers work
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+add_library   (${PROJECT_NAME} STATIC)
 target_sources(${PROJECT_NAME} 
     PRIVATE 
-        src/defines.h
         src/send.c
-        src/send.h
         src/listen.c
-        src/listen.h
         src/clientObject.c
-        src/clientObject.h
         src/socketsNetLib.c
-        src/socketsNetLib.h
-        src/socketfd.h
+        src/threadPool.c
 )
 
 target_include_directories(${PROJECT_NAME}
@@ -30,7 +28,15 @@ target_include_directories(${PROJECT_NAME}
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
-# note that it is not CMAKE_INSTALL_PREFIX we are checking here
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release)
+endif()
+
+target_compile_options(${PROJECT_NAME} PRIVATE -fvisibility=hidden $<$<CONFIG:Debug>:-O0;-g3;-ggdb;-Wall> $<$<CONFIG:Release>:-O3;>)
+
+###############################################################
+# ----- Complicated installation-related stuff past here -----#
+###############################################################
 if(DEFINED CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
     message(
         STATUS
@@ -50,15 +56,14 @@ else()
     )
 endif()
 
-target_compile_options(${PROJECT_NAME} PRIVATE -fvisibility=hidden)
 
 # without it public headers won't get installed
 set(public_headers
     include/bbnetlib.h
 )
+
 # note that ${public_headers} has to be in quotes
 set_target_properties(${PROJECT_NAME} PROPERTIES PUBLIC_HEADER "${public_headers}")
-
 set_target_properties(${PROJECT_NAME} PROPERTIES DEBUG_POSTFIX "d")
 
 # if you haven't included it already
