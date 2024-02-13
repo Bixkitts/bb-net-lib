@@ -33,6 +33,26 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 target_compile_options(${PROJECT_NAME} PRIVATE -fvisibility=hidden $<$<CONFIG:Debug>:-O0;-g3;-ggdb;-Wall> $<$<CONFIG:Release>:-O3;>)
+target_compile_definitions(${PROJECT_NAME} PRIVATE $<$<CONFIG:Debug>: DEBUG>)
+###############################################################
+# ------------- Test Binaries --------------------------------#
+###############################################################
+set (TEST_SERVER_NAME "testServer")
+set (TEST_CLIENT_NAME "testClient")
+
+# Server
+add_executable  (${TEST_SERVER_NAME})
+target_sources  (${TEST_SERVER_NAME} PRIVATE tests/server.c)
+target_include_directories(${TEST_SERVER_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_compile_options(${TEST_SERVER_NAME} PRIVATE $<$<CONFIG:Debug>:-O0;-g3;-ggdb;-Wall> $<$<CONFIG:Release>:-O3;>)
+target_compile_definitions(${TEST_SERVER_NAME} PRIVATE $<$<CONFIG:Debug>: DEBUG>)
+
+# Client
+add_executable  (${TEST_CLIENT_NAME})
+target_sources  (${TEST_CLIENT_NAME} PRIVATE tests/client.c)
+target_include_directories(${TEST_CLIENT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_compile_options(${TEST_CLIENT_NAME} PRIVATE $<$<CONFIG:Debug>:-O0;-g3;-ggdb;-Wall> $<$<CONFIG:Release>:-O3;>)
+target_compile_definitions(${TEST_CLIENT_NAME} PRIVATE $<$<CONFIG:Debug>: DEBUG>)
 
 ###############################################################
 # ----- Complicated installation-related stuff past here -----#
