@@ -2,7 +2,7 @@
 No weird complicated parameters to configure, no 
 confusing function names, no bullcrap.
 
-The working man's Transport layer IP communications.
+The working man's transport layer IP communications.
 
 ## How Do I Use This Library?
 You can either:
@@ -33,7 +33,9 @@ And then to update this library while it's a submodule:
 Add this to your CMakeLists.txt
 - target_link_libraries(${PROJECT_NAME} PRIVATE bbnetlib)
 
-Now you can include <bbnetlib.h> in your own project and get to coding
+Now you can include <bbnetlib.h> in your own project and get to coding.
+
+
 If you're feeling fancy:
 - find_package(bbnetlib 0.1 CONFIG REQUIRED)
 
@@ -48,17 +50,20 @@ If you <b>don't have cmake</b>, well then link the library via your own methods.
 Follow the steps to <b>Install and Include It</b>,
 except you do
 - cmake --build .
+
 without --target install.
 Then do with the resultant libbbnetlib.a and include header as you see fit.
 
 ## How Do I Help?
 Hit me up and help me write it.
+
 Request features by opening an issue.
 
 ## Planned Features
 - OpenSSL Transport Layer Security (TLS)
 - Websockets functions
 - IPv6 support
+- Multiplatform support (Windows)
 - HTTP helper functions
 - Maybe JSON parsing
 
