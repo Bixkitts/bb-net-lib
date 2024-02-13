@@ -77,6 +77,12 @@ void yourTCPpacketHandler (char* receivedPacketData,
     // We've decided we're completely done with this host,
     // Stop communicating with them.
     closeConnections(remotehost);
+    // We just need to close connections on the localhost
+    // and then we escape the top level listenTCP()
+    // function!
+    if (WERE_BORED) {
+        closeConnections(localhost)
+    }
 }
 int main() 
 {
@@ -105,6 +111,12 @@ void yourUDPpacketHandler (char* receivedPacketData,
     // UDP is connectionless, we just send a packet
     // back to a remote host.
     sendDataUDP(data, 13, remotehost);
+    // We just need to close connections on the localhost
+    // and then we escape the top level listenUDP()
+    // function!
+    if (WERE_BORED) {
+        closeConnections(localhost)
+    }
 }
 int main() 
 {
@@ -119,6 +131,8 @@ Maximum packet size is <b>1024 bytes</b>, so you know it's a full packet when th
 Receiving a <b>packet size of 0</b> in the packetHandler means the remote host negotiated a disconnect,
 
 and <b>-1 packet size</b> means an error (typically a timeout).
+
+<b>TCP connections time out after 5 seconds</b> (this is compiled into the binary, you can change it if necessary).
 
 ## How Do I Help?
 Hit me up and help me write it.
