@@ -10,54 +10,41 @@
 #include "clientObject.h"
 #include "socketsNetLib.h"
 
-int sendDataUDP(const char *data, const uint16_t datasize, Client *remotehost)
+int sendDataUDP(const char *data, const int16_t datasize, Host *remotehost)
 {
-    socketfd sockfd;
-    if(IS_INVALID_FD(getSocket(remotehost)))
-    {
-       sockfd = createSocket(SOCK_DEFAULT_UDP); 
-       setSocket(remotehost, sockfd);
-    }else
-    {
-        sockfd = getSocket(remotehost);
-    }
-    socklen_t len = sizeof(remotehost->address);    
-    const struct sockaddr* remoteAddress = 
-        (const struct sockaddr *) &remotehost->address; 
-    // no error checking
-    sendto(sockfd, data, datasize, MSG_CONFIRM, remoteAddress, len);
+    socketfd  sockfd                     = getSocket(remotehost);
+    socklen_t len                        = sizeof(remotehost->address);    
+    const struct sockaddr* remoteAddress = NULL;
+
+    remoteAddress = (const struct sockaddr *) &remotehost->address; 
+    sendto (sockfd, data, datasize, MSG_CONFIRM, remoteAddress, len);
     
     return SUCCESS;
 }
 
-int sendDataTCP(const char *data, const uint16_t datasize, Client *remotehost)
+int sendDataTCP(const char *data, const int64_t datasize, Host *remotehost)
 {
     int status = send(getSocket(remotehost), data, datasize, 0);
     if (status == -1) 
     {
         perror("Failed to send TCP message\n");
-        unsetListening(remotehost);
+        closeConnections(remotehost);
         return ERROR;
     }
     if (status == 0)
     {
         (void)printf("Connection closed by peer \n");
-        unsetListening(remotehost);
+        closeConnections(remotehost);
     }
     return SUCCESS;
 }
 
-int connectToTCP(Client *remotehost)
+int connectToTCP(Host *remotehost)
 {
-    // rewrite this to use localhost socket
-    socketfd sockfd;
-    
-    struct sockaddr* remoteAddress = 
-        (struct sockaddr *)&remotehost->address.sin_addr;
-    int sizeOfAddress = sizeof(remotehost->address.sin_addr);
-
-    if (IS_INVALID_FD(connect(sockfd, remoteAddress, sizeOfAddress)))
-    {
+    socketfd         sockfd        = 0;
+    struct sockaddr* remoteAddress = (struct sockaddr *)&remotehost->address.sin_addr;
+    int              sizeOfAddress = sizeof(remotehost->address.sin_addr);
+    if (IS_INVALID_FD(connect(sockfd, remoteAddress, sizeOfAddress))) {
         perror("connect failed");
         return ERROR;
     }

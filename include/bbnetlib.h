@@ -9,51 +9,37 @@
 __BEGIN_DECLS
 
 typedef int    socketfd;
-typedef struct Client_Internal *Client;
+typedef struct Host_Internal *Host;
 
-// UDP Functions
+// All connect and send functions.
 extern int sendDataUDP   (const char *buffer, 
-                          const uint16_t bufsize, Client *remotehost);    
-extern int listenForUDP  (const char *buffer, 
-                          const uint16_t bufsize, 
-                          Client localhost, 
-                          Client remotehost, 
-                          void (*packet_handler)(char*,uint16_t,Client*));   
-
-extern int connectToTCP  (Client remotehost);
+                          const ssize_t bufsize, 
+                          Host remotehost);
+extern int connectToTCP  (Host remotehost);
 extern int sendDataTCP   (const char *data, 
-                          const uint16_t datasize, 
-                          const Client *remotehost);
+                          const int64_t datasize, 
+                          const Host remotehost);
 
-// Listens for a connection over TCP and fills in the Client structures
-// with connection details.
-extern int listenForTCP  (char *buffer, 
-                          const uint16_t bufsize, 
-                          Client localhost, 
-                          Client remotehost, 
-                          void (*packet_handler)(char*,uint16_t,Client*));   
+// All listening functions
+extern int listenForUDP  (Host localhost, 
+                          void (*packet_handler)(char*, ssize_t, Host));   
+extern int listenForTCP  (Host localhost, 
+                          void (*packet_handler)(char*, ssize_t, Host));   
 
 
-// Clients are structures holding connection state
-// in the form of participants.
-// The remotehost's IP doesn't matter when listening because
-// it gets overidden.
-extern Client    *createClient             (char *ip, 
-                                            uint16_t port);       
-extern char      *getIP                    (Client client); // Returns a string representation of the IP address in the client of INET_ADDRESTRLEN (16)
-extern void       callClientPacketHandler  (char* data, 
-                                            uint16_t size, 
-                                            Client client);
-extern void       setClientPacketHandler   (Client client, 
-                                            void (*packet_handler)(char*, uint16_t, Client*));
-extern void     (*getClientPacketHandler   (Client client))(char*, uint16_t, Client*);
+// Host related functions.
+// IPs are passed in and out in human readable "X.X.X.X" format.
+// IPv6 is not supported yet.
+extern Host  createHost           (char *ip, 
+                                   uint16_t port);       
+extern void  destroyHost          (Host *host);
 
-extern void       setSocket                (Client client, 
-                                            socketfd sockfd);
-extern socketfd   getSocket                (const Client client);
-
-// Make the client stop listening on any socket
-extern void       unsetListening           (Client client);
+// IP string is always length 16
+extern char     *getIP                (Host host);
+extern uint16_t  getPort              (Host host);
+extern void      setHostPacketHandler (Host host, 
+                                       void (*packet_handler)(char*, int16_t, Host));
+extern void      closeConnections     (Host host);
 
 __END_DECLS
 

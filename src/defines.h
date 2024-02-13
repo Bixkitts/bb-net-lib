@@ -21,6 +21,6 @@ typedef enum {
     STR_ERROR_COUNT
 }errStringEnum;
 
-extern const char* errStrings[];
+extern const char *const errStrings[];
 
 #endif

@@ -19,19 +19,19 @@
 typedef struct {
     Host    localhost;
     Host    remotehost;
-    void    (*packet_handler)(char*, int16_t, Host*);
+    void    (*packet_handler)(char*, ssize_t, Host*);
 } packetReceptionArgs;
 
 static void receiveTCPpackets          (packetReceptionArgs *args);
 static void destroyPacketReceptionArgs (packetReceptionArgs **args);
 
-int listenForUDP(Host *localhost, void (*packet_handler)(char*, int16_t, Host*))    //Should be called on it's own thread as the while loop is blocking 
+int listenForUDP(Host *localhost, void (*packet_handler)(char*, ssize_t, Host*))    //Should be called on it's own thread as the while loop is blocking 
 {    
-    const socketfd sockfd     = createSocket(SOCK_DEFAULT_UDP);
-    Host           remotehost = { 0 };
-    int16_t        numBytes   = 0;
-    socklen_t      len        = 0;
-    char          *buffer     = NULL;
+    const socketfd sockfd                     = createSocket(SOCK_DEFAULT_UDP);
+    Host           remotehost                 = { 0 };
+    ssize_t        numBytes                   = 0;
+    socklen_t      len                        = 0;
+    char           buffer[PACKET_BUFFER_SIZE] = { 0 };
     // Need to track the size of the buffer
     // we'll be using to hold received data.
     // We may need to make it bigger with reallocations.
@@ -59,11 +59,6 @@ int listenForUDP(Host *localhost, void (*packet_handler)(char*, int16_t, Host*))
     len = sizeof(localhost->address);
     // Need to cast the pointer to a sockaddr type to satisfy the syscall
     struct sockaddr* remoteAddress = ( struct sockaddr *)&remotehost.address;
-
-    buffer = (char*)malloc(PACKET_BUFFER_SIZE);
-    if (buffer == NULL) {
-        return ERROR;
-    }
 
     while(isCommunicating(localhost)) {
         numBytes = recvfrom(sockfd, 
@@ -105,7 +100,7 @@ int listenForUDP(Host *localhost, void (*packet_handler)(char*, int16_t, Host*))
  * is set not to listen any more.
  * */
 int listenForTCP(Host *localhost, 
-                 void (*packet_handler)(char*, int16_t, Host*))
+                 void (*packet_handler)(char*, ssize_t, Host*))
 {
     threadPool           localThreadPool = NULL;
     packetReceptionArgs *receptionArgs   = NULL;
@@ -143,9 +138,8 @@ int listenForTCP(Host *localhost,
         setSocket        (&remotehost, createSocket(accept(getSocket(localhost), remoteAddress, &addrLen)));
         setCommunicating (&remotehost);
 
-        // Set a timeout on the socket.
-        // The underlying system SHOULD close
-        // a connection if this is exhausted.
+        // If nothing arrives on the socket then we close
+        // it after 5 seconds
         struct timeval timeout = {};
         timeout.tv_sec  = 5;   // 5 seconds
         timeout.tv_usec = 0;  // 0 microseconds
@@ -197,7 +191,7 @@ early_exit:
  */
 static void receiveTCPpackets(packetReceptionArgs *args) 
 {
-    int16_t  numBytes                   = 0;
+    ssize_t  numBytes                   = 0;
     char     buffer[PACKET_BUFFER_SIZE] = { 0 };   
 
     while(isCommunicating(&args->remotehost)) {
@@ -218,6 +212,12 @@ static void receiveTCPpackets(packetReceptionArgs *args)
 static void destroyPacketReceptionArgs(packetReceptionArgs **args)
 {
     if (*args != NULL) {
+        if ((*args)->remotehost.ssl != NULL) {
+            // TODO: destroy SSL object here
+        }
+        if ((*args)->localhost.ssl != NULL) {
+            // TODO: destroy SSL object here
+        }
         free(*args);
         *args = NULL;
     }

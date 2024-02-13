@@ -12,8 +12,6 @@
 
 #include "clientObject.h"
 
-static pthread_mutex_t listenMutex = PTHREAD_MUTEX_INITIALIZER;
-
 Host* createHost(const char *ip, const uint16_t port)
 {
     Host* host = NULL;
@@ -24,6 +22,7 @@ Host* createHost(const char *ip, const uint16_t port)
         return NULL;
     }
     //filling in the data of the host's ip.
+    strcpy((char*)host->addressStr, ip);
     host->address.sin_family = AF_INET;
     host->address.sin_port   = htons(port);
 
@@ -33,20 +32,17 @@ Host* createHost(const char *ip, const uint16_t port)
     return host;
 }
 
-void copyHost(Host* dsthost, Host* srcClient)
+void copyHost(Host* dstHost, Host* srcHost)
 {
-    Host* newhost = (Host*)malloc(sizeof(Host));
-    if (newhost == NULL) {
-        exit(1);
-    }
-    // NOTE: watch out if you modify host!
-    memcpy(newhost, srcClient, sizeof(Host));
+    memcpy(dstHost, srcHost, sizeof(Host));
 }
-char* getIP(Host* host)
+const char* getIP(Host* host)
 {
-    char* ip_str = (char*) malloc(INET_ADDRSTRLEN * sizeof(char));
-    inet_ntop(AF_INET, &(host->address.sin_addr), ip_str, INET_ADDRSTRLEN);
-    return ip_str;
+    return (const char*)host->addressStr;
+}
+uint16_t getPort(Host* host)
+{
+    return ntohs(host->address.sin_port);
 }
 void destroyHost(Host** host)
 {
