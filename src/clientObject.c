@@ -16,8 +16,8 @@
 static pthread_mutex_t copyLock  = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t cacheLock = PTHREAD_MUTEX_INITIALIZER;
 
-static Host hostCache     [MAX_HOST_CACHES][MAX_HOSTS_PER_CACHE] = {0};
-static int  cacheOccupancy[MAX_HOST_CACHES]                      = {0};
+static Host* hostCache     [MAX_HOST_CACHES][MAX_HOSTS_PER_CACHE] = {0};
+static int   cacheOccupancy[MAX_HOST_CACHES]                      = {0};
 
 static atomic_int hostIDCounter = ATOMIC_VAR_INIT(0);
 
@@ -63,8 +63,11 @@ void cacheHost(Host* host, int cacheIndex)
         goto unlock;
     }
     if (cacheOccupancy[cacheIndex] < MAX_HOSTS_PER_CACHE) {
-        fastCopyHost(&hostCache[cacheIndex][cacheOccupancy[cacheIndex]], host);
+        hostCache[cacheIndex][cacheOccupancy[cacheIndex]] = host;
         cacheOccupancy[cacheIndex]++;
+    }
+    else {
+        fprintf(stderr, "\nHost cache full, can't add host %s", getIP(host));
     }
 unlock:
     pthread_mutex_unlock (&cacheLock);
@@ -82,7 +85,7 @@ unlock:
 }
 Host *getHostFromCache(int cacheIndex, int hostIndex)
 {
-    return hostCache[cacheIndex];
+    return hostCache[cacheIndex][hostIndex];
 }
 const int getCacheOccupancy(int cacheIndex)
 {

@@ -13,6 +13,7 @@ target_sources(${PROJECT_NAME}
     PRIVATE 
         src/send.c
         src/listen.c
+        src/defines.c
         src/clientObject.c
         src/socketsNetLib.c
         src/threadPool.c
@@ -46,6 +47,7 @@ target_sources  (${TEST_SERVER_NAME} PRIVATE tests/server.c)
 target_include_directories(${TEST_SERVER_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_compile_options(${TEST_SERVER_NAME} PRIVATE $<$<CONFIG:Debug>:-O0;-g3;-ggdb;-Wall> $<$<CONFIG:Release>:-O3;>)
 target_compile_definitions(${TEST_SERVER_NAME} PRIVATE $<$<CONFIG:Debug>: DEBUG>)
+target_link_libraries(${TEST_SERVER_NAME} PRIVATE ${PROJECT_NAME})
 
 # Client
 add_executable  (${TEST_CLIENT_NAME})
@@ -53,6 +55,7 @@ target_sources  (${TEST_CLIENT_NAME} PRIVATE tests/client.c)
 target_include_directories(${TEST_CLIENT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_compile_options(${TEST_CLIENT_NAME} PRIVATE $<$<CONFIG:Debug>:-O0;-g3;-ggdb;-Wall> $<$<CONFIG:Release>:-O3;>)
 target_compile_definitions(${TEST_CLIENT_NAME} PRIVATE $<$<CONFIG:Debug>: DEBUG>)
+target_link_libraries(${TEST_CLIENT_NAME} PRIVATE ${PROJECT_NAME})
 
 ###############################################################
 # ----- Complicated installation-related stuff past here -----#

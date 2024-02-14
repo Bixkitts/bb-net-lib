@@ -15,8 +15,8 @@
 #include "threadPool.h"
 #include "send.h"
 
-threadPool TCPthreadPool = { 0 };
-threadPool UDPthreadPool = { 0 };
+threadPool TCPthreadPool = NULL;
+threadPool UDPthreadPool = NULL;
 
 typedef struct {
     Host    localhost;
@@ -106,10 +106,10 @@ int listenForTCP(Host *localhost,
     packetReceptionArgs *receptionArgs   = NULL;
     socklen_t            addrLen         = 0;
     struct sockaddr     *remoteAddress   = NULL;
-    Host                 remotehost      = { 0 };
+    Host                *remotehost      = NULL;
 
-    initThreadPool (TCPthreadPool);
-    setSocket      (localhost, createSocket(SOCK_DEFAULT_TCP));
+    createThreadPool (&TCPthreadPool);
+    setSocket        (localhost, createSocket(SOCK_DEFAULT_TCP));
 
     if (FAILURE(bindSocket(getSocket(localhost), localhost)))
     {
@@ -123,43 +123,44 @@ int listenForTCP(Host *localhost,
         return ERROR;
     }
 
-
     while(isCommunicating(localhost)) 
     {
-        addrLen       = sizeof(remotehost.address);
+        remotehost = createHost("", 0000);
+        addrLen    = sizeof(remotehost->address);
 
         // Need to cast the type because that's
         // just how sockets work
-        remoteAddress = ( struct sockaddr *)&remotehost.address;
+        remoteAddress = ( struct sockaddr *)&remotehost->address;
 
         // The socket file descriptor in "remotehost" becomes an accepted
         // TCP connection, configure it and pass it over
         // to the thread pool.
-        setSocket        (&remotehost, createSocket(accept(getSocket(localhost), remoteAddress, &addrLen)));
-        setCommunicating (&remotehost);
+        setSocket        (remotehost, createSocket(accept(getSocket(localhost), remoteAddress, &addrLen)));
+        setCommunicating (remotehost);
 
-        // If nothing arrives on the socket then we close
-        // it after 5 seconds
+        // 5 second timeout to close socket
+        // -----------------------------------
         struct timeval timeout = {};
         timeout.tv_sec  = 5;   // 5 seconds
         timeout.tv_usec = 0;  // 0 microseconds
-        if (FAILURE(setsockopt(getSocket(&remotehost), 
+        if (FAILURE(setsockopt(getSocket(remotehost), 
                                SOL_SOCKET, 
                                SO_RCVTIMEO, 
                                (char *)&timeout, sizeof(timeout)))) 
         {
             perror("\nSetsockopt error");
         }
+        // ----------------------------------
 
         receptionArgs = (packetReceptionArgs*)calloc(1, sizeof(packetReceptionArgs));
         if (receptionArgs == NULL) {
-            // returns SUCCESS but whatever.
             goto early_exit;
         }
 
-        // Deep copy of hosts for thread-local processing
-        // Buffer and bufsize filled later in the thread
-        // while receiving data.
+        // TODO: threads should get a reference to the hosts
+        // created in this loop, and NOT deep copy.
+        // Each host needs a single atomic state
+        // across the program.
         fastCopyHost (&receptionArgs->remotehost, &remotehost);
         fastCopyHost (&receptionArgs->localhost, localhost);
         receptionArgs->packet_handler = packet_handler;
@@ -172,14 +173,14 @@ int listenForTCP(Host *localhost,
     }
 
 early_exit: 
-    destroyThreadPool (TCPthreadPool);
+    destroyThreadPool (&TCPthreadPool);
     closeSocket       (getSocket(localhost));
 
     if (isCommunicating(localhost)) {
         closeConnections(localhost);
     }
-    if (isCommunicating(&remotehost)) {
-        closeConnections(&remotehost);
+    if (isCommunicating(remotehost)) {
+        closeConnections(remotehost);
     }
 
     return SUCCESS;
