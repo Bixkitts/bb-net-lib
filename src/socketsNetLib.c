@@ -13,7 +13,7 @@ socketfd createSocket(socketfd value)
 {
     socketfd sockfd = value;
     if (IS_INVALID_FD(socket)) { 
-        perror("socket creation failed"); 
+        perror("\nSocket creation failed"); 
         return ERROR;
     }   
     return sockfd;
@@ -30,7 +30,7 @@ int bindSocket(socketfd sockfd, Host* localhost)
     if(FAILURE(bind(sockfd, 
                     boundAddress, 
                     sizeof(localhost->address)))) {
-        perror("Failed to bind socket!");
+        perror("\nFailed to bind socket!");
         return ERROR;
     }
     return SUCCESS;

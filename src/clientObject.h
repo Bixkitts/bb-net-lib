@@ -28,7 +28,7 @@ typedef struct Host  // Structure that can be expanded and used to hold any need
 
 BBNETAPI extern Host        *createHost            (const char *ip, 
                                                     const uint16_t port);
-BBNETAPI extern void         deleteHost            (Host* host);       // Removes a client, closing the socket and freeing the memory
+extern          void         destroyHost           (Host **host);
 BBNETAPI extern const char  *getIP                 (Host* host);       // Returns a string representation of the IP address in the client
 BBNETAPI extern uint16_t     getPort               (Host* host);
 extern void                  callHostPacketHandler (char* data, 

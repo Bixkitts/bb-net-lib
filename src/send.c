@@ -41,13 +41,13 @@ int sendDataTCP(const char *data, const ssize_t datasize, Host *remotehost)
     int status = send(getSocket(remotehost), data, datasize, 0);
 
     if (status == -1) {
-        perror("Failed to send TCP message");
+        perror("\nFailed to send TCP message");
         closeConnections     (remotehost);
         pthread_mutex_unlock (&sendLocks[lockIndex]);
         return ERROR;
     }
     if (status == 0) {
-        perror           ("Socket is closed, couldn't send data");
+        perror           ("\nSocket is closed, couldn't send data");
         closeConnections (remotehost);
     }
     pthread_mutex_unlock   (&sendLocks[lockIndex]);
@@ -59,23 +59,27 @@ int multicastTCP(const char *data, const ssize_t datasize, int cacheIndex)
 #ifdef DEBUG
     fprintf(stderr, "\nMulticasting to cache number %d...", cacheIndex);
 #endif
+    Host *remotehost = NULL;
     for (int i = 0; i < getCacheOccupancy(cacheIndex); i++) {
         // TODO: perhaps this needs to be done on the thread
         // Pool but should be fine for smaller amount of clients.
         // If one client stalls however, that stalls all the packets in
         // the multicast.
-        sendDataTCP(data, datasize, getHostFromCache(cacheIndex, i));
+        remotehost = getHostFromCache(cacheIndex, i);
+        if (remotehost != NULL) { 
+            sendDataTCP(data, datasize, remotehost);
+        }
     }
     return SUCCESS;
 }
 
 int connectToTCP(Host *remotehost)
 {
-    socketfd         sockfd        = 0;
-    struct sockaddr* remoteAddress = (struct sockaddr *)&remotehost->address.sin_addr;
-    unsigned int     sizeOfAddress = sizeof(remotehost->address.sin_addr);
-    if (IS_INVALID_FD(connect(sockfd, remoteAddress, sizeOfAddress))) {
-        perror("Connect failed");
+    const socketfd   sockfd        = createSocket(SOCK_DEFAULT_TCP);
+    struct sockaddr* remoteAddress = (struct sockaddr *)&remotehost->address;
+    const socklen_t  sizeOfAddress = sizeof(remotehost->address);
+    if (FAILURE(connect(sockfd, remoteAddress, sizeOfAddress))) {
+        perror("\nConnect failed");
         return ERROR;
     }
     setSocket(remotehost, sockfd);

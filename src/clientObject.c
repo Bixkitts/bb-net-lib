@@ -14,7 +14,7 @@
 #include "clientObject.h"
 
 static pthread_mutex_t copyLock  = PTHREAD_MUTEX_INITIALIZER;
-static pthread_mutex_t cacheLock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t cacheLock[MAX_HOST_CACHES] = {PTHREAD_MUTEX_INITIALIZER};
 
 static Host* hostCache     [MAX_HOST_CACHES][MAX_HOSTS_PER_CACHE] = {0};
 static int   cacheOccupancy[MAX_HOST_CACHES]                      = {0};
@@ -57,7 +57,7 @@ void copyHost(Host* dstHost, Host* srcHost)
 }
 void cacheHost(Host* host, int cacheIndex)
 {
-    pthread_mutex_lock   (&cacheLock);
+    pthread_mutex_lock   (&cacheLock[cacheIndex]);
     if (cacheIndex >= MAX_HOST_CACHES) {
         fprintf(stderr, "\n%s", errStrings[STR_ERROR_HOST_CACHE_INDEX]);
         goto unlock;
@@ -70,18 +70,18 @@ void cacheHost(Host* host, int cacheIndex)
         fprintf(stderr, "\nHost cache full, can't add host %s", getIP(host));
     }
 unlock:
-    pthread_mutex_unlock (&cacheLock);
+    pthread_mutex_unlock (&cacheLock[cacheIndex]);
 }
 void clearHostCache(int cacheIndex)
 {
-    pthread_mutex_lock   (&cacheLock);
+    pthread_mutex_lock   (&cacheLock[cacheIndex]);
     if (cacheIndex >= MAX_HOST_CACHES) {
         fprintf(stderr, "\n%s", errStrings[STR_ERROR_HOST_CACHE_INDEX]);
         goto unlock;
     }
     cacheOccupancy[cacheIndex] = 0;
 unlock:
-    pthread_mutex_unlock (&cacheLock);
+    pthread_mutex_unlock (&cacheLock[cacheIndex]);
 }
 Host *getHostFromCache(int cacheIndex, int hostIndex)
 {

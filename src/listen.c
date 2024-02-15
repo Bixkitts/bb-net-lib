@@ -19,8 +19,8 @@ threadPool TCPthreadPool = NULL;
 threadPool UDPthreadPool = NULL;
 
 typedef struct {
-    Host    localhost;
-    Host    remotehost;
+    Host    *localhost;
+    Host    *remotehost;
     void    (*packet_handler)(char*, ssize_t, Host*);
 } packetReceptionArgs;
 
@@ -103,6 +103,9 @@ int listenForUDP(Host *localhost, void (*packet_handler)(char*, ssize_t, Host*))
 int listenForTCP(Host *localhost, 
                  void (*packet_handler)(char*, ssize_t, Host*))
 {
+#ifdef DEBUG
+    fprintf(stderr, "\nListening for TCP connections...");
+#endif
     packetReceptionArgs *receptionArgs   = NULL;
     socklen_t            addrLen         = 0;
     struct sockaddr     *remoteAddress   = NULL;
@@ -113,13 +116,13 @@ int listenForTCP(Host *localhost,
 
     if (FAILURE(bindSocket(getSocket(localhost), localhost)))
     {
-        perror("Failed to listen for TCP \n");
+        perror("\nFailed to listen for TCP");
         return ERROR;
     }
 
     setCommunicating(localhost);
     if (FAILURE(listen(getSocket(localhost), SOCK_BACKLOG))) {
-        printf("Error: listen() failed with errno %d: %s\n", errno, strerror(errno));
+        printf("\nError: listen() failed with errno %d: %s\n", errno, strerror(errno));
         return ERROR;
     }
 
@@ -161,15 +164,15 @@ int listenForTCP(Host *localhost,
         // created in this loop, and NOT deep copy.
         // Each host needs a single atomic state
         // across the program.
-        fastCopyHost (&receptionArgs->remotehost, &remotehost);
-        fastCopyHost (&receptionArgs->localhost, localhost);
+        receptionArgs->remotehost     = remotehost;
+        receptionArgs->localhost      = localhost;
         receptionArgs->packet_handler = packet_handler;
 
         // Process the TCP data in a thread, continue with this loop
         // accepting connections and getting valid socket
         // file descriptors to pass to threads.
         // remotehost data is passed off here.
-        addTaskToThreadPool(TCPthreadPool, (void*)receiveTCPpackets, &receptionArgs);
+        addTaskToThreadPool(TCPthreadPool, (void*)receiveTCPpackets, receptionArgs);
     }
 
 early_exit: 
@@ -192,20 +195,24 @@ early_exit:
  */
 static void receiveTCPpackets(packetReceptionArgs *args) 
 {
+#ifdef DEBUG
+    fprintf(stderr, "\nReceiving a TCP packet in a thread...");
+#endif
     ssize_t  numBytes                   = 0;
     char     buffer[PACKET_BUFFER_SIZE] = { 0 };   
 
-    while(isCommunicating(&args->remotehost)) {
-        numBytes       =  recv (getSocket(&args->remotehost), 
+    while(isCommunicating(args->remotehost)) {
+        numBytes       =  recv (getSocket(args->remotehost), 
                                 buffer, 
                                 PACKET_BUFFER_SIZE, 
                                 0);
-        args->packet_handler (buffer, numBytes, &args->remotehost);
+        args->packet_handler (buffer, numBytes, args->remotehost);
     }
     // Let the remote host know we're closing connection
-    sendDataTCP                (NULL, 0, &args->remotehost);
+    sendDataTCP                (NULL, 0, args->remotehost);
 
-    closeSocket                (getSocket(&args->remotehost));
+    closeSocket                (getSocket(args->remotehost));
+    destroyHost                (&args->remotehost); 
     destroyPacketReceptionArgs (&args);
     return;
 }
@@ -215,14 +222,9 @@ static void receiveTCPpackets(packetReceptionArgs *args)
  */
 static void destroyPacketReceptionArgs(packetReceptionArgs **args)
 {
-    if (*args != NULL) {
-        if ((*args)->remotehost.ssl != NULL) {
-            // TODO: destroy SSL object here
-        }
-        if ((*args)->localhost.ssl != NULL) {
-            // TODO: destroy SSL object here
-        }
-        free(*args);
-        *args = NULL;
+    if (*args == NULL) {
+        return;
     }
+    free(*args);
+    *args = NULL;
 }
