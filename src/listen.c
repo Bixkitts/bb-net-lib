@@ -7,6 +7,7 @@
 #include <netdb.h>
 #include <errno.h>
 #include <malloc.h>
+#include <fcntl.h>
 
 #include "clientObject.h"
 #include "listen.h"
@@ -19,9 +20,11 @@ threadPool TCPthreadPool = NULL;
 threadPool UDPthreadPool = NULL;
 
 typedef struct {
-    Host    *localhost;
-    Host    *remotehost;
-    void    (*packet_handler)(char*, ssize_t, Host*);
+    Host       *localhost;
+    Host       *remotehost;
+    char       *buffer;
+    ssize_t     bytesToProcess;
+    void      (*packet_handler)(char*, ssize_t, Host*);
 } packetReceptionArgs;
 
 static void receiveTCPpackets          (packetReceptionArgs *args);
@@ -160,18 +163,13 @@ int listenForTCP(Host *localhost,
             goto early_exit;
         }
 
-        // TODO: threads should get a reference to the hosts
-        // created in this loop, and NOT deep copy.
-        // Each host needs a single atomic state
-        // across the program.
+        // Remotehost pointer is now owned by new thread
         receptionArgs->remotehost     = remotehost;
         receptionArgs->localhost      = localhost;
         receptionArgs->packet_handler = packet_handler;
+        receptionArgs->buffer         = (char*)calloc(PACKET_BUFFER_SIZE*5, sizeof(char));
+        receptionArgs->bytesToProcess = 0;
 
-        // Process the TCP data in a thread, continue with this loop
-        // accepting connections and getting valid socket
-        // file descriptors to pass to threads.
-        // remotehost data is passed off here.
         addTaskToThreadPool(TCPthreadPool, (void*)receiveTCPpackets, receptionArgs);
     }
 
@@ -188,31 +186,32 @@ early_exit:
 
     return SUCCESS;
 }
-/*
- * A connection has successfully been opened with listenForTCP.
- * receiveTCPpackets() should now be running in it's own thread
- * reading it's own copied thread-local "args" data.
- */
+
 static void receiveTCPpackets(packetReceptionArgs *args) 
 {
+    //addTaskToThreadPool(TCPthreadPool, (void*)processTCPpackets, args);
 #ifdef DEBUG
     fprintf(stderr, "\nReceiving a TCP packet in a thread...");
 #endif
-    ssize_t  numBytes                   = 0;
-    char     buffer[PACKET_BUFFER_SIZE] = { 0 };   
-
+    ssize_t numBytes = 0;
+    
     while(isCommunicating(args->remotehost)) {
-        numBytes       =  recv (getSocket(args->remotehost), 
-                                buffer, 
-                                PACKET_BUFFER_SIZE, 
-                                0);
-        args->packet_handler (buffer, numBytes, args->remotehost);
+        numBytes = recv(getSocket(args->remotehost), 
+                         args->buffer, 
+                         PACKET_BUFFER_SIZE, 
+                         0);
+        if (numBytes > 0) {
+            args->packet_handler(args->buffer, numBytes, args->remotehost); 
+            sleep(1);
+        }
+        else {
+            fprintf(stderr, "\nConnection shutdown triggered by recv()...");
+            closeConnections(args->remotehost);
+        }
     }
     // Let the remote host know we're closing connection
     sendDataTCP                (NULL, 0, args->remotehost);
-
     closeSocket                (getSocket(args->remotehost));
-    destroyHost                (&args->remotehost); 
     destroyPacketReceptionArgs (&args);
     return;
 }
@@ -225,6 +224,8 @@ static void destroyPacketReceptionArgs(packetReceptionArgs **args)
     if (*args == NULL) {
         return;
     }
-    free(*args);
+    destroyHost (&(*args)->remotehost); 
+    free        ((*args)->buffer);
+    free        (*args);
     *args = NULL;
 }

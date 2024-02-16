@@ -47,7 +47,7 @@ int sendDataTCP(const char *data, const ssize_t datasize, Host *remotehost)
         return ERROR;
     }
     if (status == 0) {
-        perror           ("\nSocket is closed, couldn't send data");
+        fprintf          (stderr, "\nSocket is closed, couldn't send data");
         closeConnections (remotehost);
     }
     pthread_mutex_unlock   (&sendLocks[lockIndex]);

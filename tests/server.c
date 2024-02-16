@@ -1,20 +1,15 @@
 #include <stdio.h>
 #include "bbnetlib.h"
+#include <unistd.h>
 Host localhost = NULL;
 
 void testPacketHandler(char *data, ssize_t packetSize, Host remotehost)
 {
-    if (packetSize > 0) {
-        printf("\nReceived the following string: %s", data);
+    printf("\nReceived data:");
+    for (int i = 0; i < packetSize; i++) {
+        printf("%c", data[i]);
     }
-    if (packetSize == 0) {
-        printf("\nRemotehost negotiated shutdown...");
-        closeConnections(remotehost);
-    }
-    if (packetSize < 0) {
-        printf("\nThere was some sort of problem.");
-        closeConnections(remotehost);
-    }
+    printf("\n");
     return;
 }
 
