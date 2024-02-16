@@ -67,12 +67,6 @@ void yourTCPpacketHandler (char* receivedPacketData,
                            Host hostThatSentThePacket)
 {
     Host remotehost = hostThatSentThePacket;
-    // Maybe we want to save the remote host 
-    // to a buffer for future reference,
-    // like multicasts
-    copyHost (cachedRemoteHost, remotehost);
-    // Get the IP of the remotehost:
-    char ip[IP_ADDR_LEN] = getIp(remotehost);
     // Send some data back
     const char data[] = "Hello there!";
     ssize_t    dataSize = 13;
@@ -116,10 +110,6 @@ void yourUDPpacketHandler (char* receivedPacketData,
                            Host hostThatSentThePacket)
 {
     Host remotehost = hostThatSentThePacket;
-    // Maybe we want to save the remote host 
-    // to a buffer for future reference,
-    // like multicasts
-    copyHost (cachedRemoteHost, remotehost);
     // Get the IP of the remotehost:
     char ip[IP_ADDR_LEN] = getIp(remotehost);
     // Send some data back
