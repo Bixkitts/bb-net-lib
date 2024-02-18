@@ -14,16 +14,22 @@
 #define MAX_HOSTS_PER_CACHE 1024
 
 
-typedef struct Host  // Structure that can be expanded and used to hold any needed info
+typedef struct Host 
 {
+    const char*        addressStr[INET_ADDRSTRLEN];
+    SSL               *ssl;             // Not NULL if we're connected over SSL
     int                id;
     struct sockaddr_in address;         // The socket it contains (IP and port)
-    const char*        addressStr[INET_ADDRSTRLEN];
     volatile bool      bListen;         // Is this host supposed to be currently listening on a thread 
     socketfd           associatedSocket;// Socket that gets associated with this host.
                                         // This allows the socket from a connection 
                                         // to be saved and reused!
-    SSL               *ssl;             // Not NULL if we're connected over SSL
+    // Flags I should compress if I have too many
+    bool               isCached;        // If the host has been cached,
+                                        // it should not be freed until
+                                        // the cache is destroyed.
+    bool               isWaiting;       // This host has a non-blocking socket
+                                        // that's waiting to call send/recv again
 } Host;
 
 BBNETAPI extern Host        *createHost            (const char *ip, 

@@ -19,15 +19,6 @@
 threadPool TCPthreadPool = NULL;
 threadPool UDPthreadPool = NULL;
 
-typedef struct {
-    Host       *localhost;
-    Host       *remotehost;
-    char       *buffer;
-    ssize_t     bytesToProcess;
-    void      (*packet_handler)(char*, ssize_t, Host*);
-} packetReceptionArgs;
-
-static void receiveTCPpackets          (packetReceptionArgs *args);
 static void destroyPacketReceptionArgs (packetReceptionArgs **args);
 
 int listenForUDP(Host *localhost, void (*packet_handler)(char*, ssize_t, Host*))    //Should be called on it's own thread as the while loop is blocking 
@@ -167,8 +158,12 @@ int listenForTCP(Host *localhost,
         receptionArgs->remotehost     = remotehost;
         receptionArgs->localhost      = localhost;
         receptionArgs->packet_handler = packet_handler;
-        receptionArgs->buffer         = (char*)calloc(PACKET_BUFFER_SIZE*5, sizeof(char));
         receptionArgs->bytesToProcess = 0;
+        receptionArgs->buffer         = (char*)calloc(PACKET_BUFFER_SIZE*5, sizeof(char));
+        if (receptionArgs->buffer == NULL) {
+            free (receptionArgs);
+            goto early_exit;
+        }
 
         addTaskToThreadPool(TCPthreadPool, (void*)receiveTCPpackets, receptionArgs);
     }
@@ -187,7 +182,7 @@ early_exit:
     return SUCCESS;
 }
 
-static void receiveTCPpackets(packetReceptionArgs *args) 
+void receiveTCPpackets(packetReceptionArgs *args) 
 {
     //addTaskToThreadPool(TCPthreadPool, (void*)processTCPpackets, args);
 #ifdef DEBUG

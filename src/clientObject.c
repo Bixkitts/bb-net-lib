@@ -65,6 +65,7 @@ void cacheHost(Host* host, int cacheIndex)
     if (cacheOccupancy[cacheIndex] < MAX_HOSTS_PER_CACHE) {
         hostCache[cacheIndex][cacheOccupancy[cacheIndex]] = host;
         cacheOccupancy[cacheIndex]++;
+        host->isCached = 1;
     }
     else {
         fprintf(stderr, "\nHost cache full, can't add host %s", getIP(host));
@@ -78,6 +79,11 @@ void clearHostCache(int cacheIndex)
     if (cacheIndex >= MAX_HOST_CACHES) {
         fprintf(stderr, "\n%s", errStrings[STR_ERROR_HOST_CACHE_INDEX]);
         goto unlock;
+    }
+    for (int i = 0; i < cacheOccupancy[cacheIndex]; i++) {
+       Host* hostToDelete = getHostFromCache(cacheIndex, i);
+       hostToDelete->isCached = 0;
+       destroyHost(&hostToDelete);
     }
     cacheOccupancy[cacheIndex] = 0;
 unlock:
@@ -105,10 +111,15 @@ int getHostID(Host *host)
 }
 void destroyHost(Host** host)
 {
-    if (*host != NULL) {
-        free(*host);
-        *host = NULL;
+    if (*host == NULL) {
+        return;
     }
+    if ((*host)->isCached == 1) {
+        return;
+    }
+
+    free(*host);
+    *host = NULL;
 }
 
 void closeConnections(Host* host)

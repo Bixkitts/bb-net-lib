@@ -5,8 +5,10 @@
 #include <strings.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <errno.h>
 
 #include "clientObject.h"
+#include "listen.h"
 #include "socketsNetLib.h"
 
 #define SEND_LOCK_COUNT 16
@@ -54,6 +56,70 @@ int sendDataTCP(const char *data, const ssize_t datasize, Host *remotehost)
     return SUCCESS;
 }
 
+int sendDataTCPandRecv(const char *data, 
+                       const ssize_t datasize, 
+                       Host *remotehost, 
+                       void (*packet_handler)(char*, ssize_t, Host*))
+{
+    packetReceptionArgs *recvArgs  = NULL;
+
+    sendDataTCP(data, datasize, remotehost);
+
+    recvArgs = (packetReceptionArgs*)calloc(1, sizeof(packetReceptionArgs));
+    if (recvArgs == NULL) {
+        closeConnections(remotehost);
+        return ERROR;
+    }
+
+    // Remotehost pointer is now owned by new thread
+    recvArgs->remotehost     = remotehost;
+    recvArgs->localhost      = NULL;
+    recvArgs->packet_handler = packet_handler;
+    recvArgs->bytesToProcess = 0;
+    recvArgs->buffer         = (char*)calloc(PACKET_BUFFER_SIZE*5, sizeof(char));
+    if (recvArgs->buffer == NULL) {
+        free (recvArgs);
+        return ERROR;
+    }
+        
+    receiveTCPpackets (recvArgs);
+    return SUCCESS;
+}
+
+int NB_sendDataTCP    (const char *data, 
+                       const ssize_t datasize, 
+                       Host *remotehost)
+{
+#ifdef DEBUG
+    fprintf(stderr, "\nSending TCP packet...");
+#endif
+    int lockIndex = getHostID(remotehost) % SEND_LOCK_COUNT;
+    pthread_mutex_lock   (&sendLocks[lockIndex]);
+
+    setSocketNonBlock(getSocket(remotehost));
+    int status = send(getSocket(remotehost), data, datasize, 0);
+
+    if (status < 0) {
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            remotehost->isWaiting = 1;
+            pthread_mutex_unlock (&sendLocks[lockIndex]);
+            return SUCCESS;
+        }
+        perror("\nFailed to send TCP message");
+        closeConnections     (remotehost);
+        remotehost->isWaiting = 0;
+        pthread_mutex_unlock (&sendLocks[lockIndex]);
+        return ERROR;
+    }
+    if (status == 0) {
+        fprintf          (stderr, "\nSocket is closed, couldn't send data");
+        remotehost->isWaiting = 0;
+        closeConnections (remotehost);
+    }
+    pthread_mutex_unlock   (&sendLocks[lockIndex]);
+    return SUCCESS;
+}
+
 int multicastTCP(const char *data, const ssize_t datasize, int cacheIndex)
 {
 #ifdef DEBUG
@@ -61,14 +127,12 @@ int multicastTCP(const char *data, const ssize_t datasize, int cacheIndex)
 #endif
     Host *remotehost = NULL;
     for (int i = 0; i < getCacheOccupancy(cacheIndex); i++) {
-        // TODO: perhaps this needs to be done on the thread
-        // Pool but should be fine for smaller amount of clients.
-        // If one client stalls however, that stalls all the packets in
-        // the multicast.
+        // TODO: currently this blocks between sends
+        // to each client. Redo this with 
+        // non-blocking sockets.
+        // Make a non-blockingSendTCP?
         remotehost = getHostFromCache(cacheIndex, i);
-        if (remotehost != NULL) { 
-            sendDataTCP(data, datasize, remotehost);
-        }
+        sendDataTCP(data, datasize, remotehost);
     }
     return SUCCESS;
 }

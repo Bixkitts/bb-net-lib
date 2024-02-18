@@ -4,6 +4,7 @@
 #include <arpa/inet.h>
 #include <strings.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 #include "defines.h"
 #include "clientObject.h"
@@ -34,4 +35,16 @@ int bindSocket(socketfd sockfd, Host* localhost)
         return ERROR;
     }
     return SUCCESS;
+}
+int setSocketNonBlock(socketfd sockfd)
+{    
+    int flags = fcntl(sockfd, F_GETFL, 0);
+    if (flags == -1) {
+        return ERROR;
+    }
+    if (fcntl(sockfd, F_SETFL, flags | O_NONBLOCK) == -1) {
+        perror("Error setting socket to non-blocking mode");
+        return ERROR;
+    }
+    return SUCCESS; 
 }
