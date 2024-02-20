@@ -15,22 +15,28 @@
 #define MAX_HOSTS           2048
 
 
-typedef struct Host  // Structure that can be expanded and used to hold any needed info
+typedef struct Host 
 {
-    int                id;
-    struct sockaddr_in address;         // The socket it contains (IP and port)
     const char*        addressStr[INET_ADDRSTRLEN];
-    volatile bool      bListen;         // Is this host supposed to be currently listening on a thread 
+    struct sockaddr_in address;         // The socket it contains (IP and port)
+    SSL               *ssl;             // Not NULL if we're connected over SSL
+    void              *customAttribute; // library user can store whatever in here
+    int                id;
     socketfd           associatedSocket;// Socket that gets associated with this host.
                                         // This allows the socket from a connection 
                                         // to be saved and reused!
-    SSL               *ssl;             // Not NULL if we're connected over SSL
-    void              *customAttribute; // library user can store whatever in here
+    volatile bool      bListen;         // Is this host supposed to be currently listening on a thread 
+    // Flags I should compress if I have too many
+    bool               isCached;        // If the host has been cached,
+                                        // it should not be freed until
+                                        // the cache is destroyed.
+    bool               isWaiting;       // This host has a non-blocking socket
+                                        // that's waiting to call send/recv again
 } Host;
 
 BBNETAPI extern Host        *createHost            (const char *ip, 
                                                     const uint16_t port);
-BBNETAPI extern void         deleteHost            (Host* host);       // Removes a client, closing the socket and freeing the memory
+extern          void         destroyHost           (Host **host);
 BBNETAPI extern const char  *getIP                 (Host* host);       // Returns a string representation of the IP address in the client
 BBNETAPI extern uint16_t     getPort               (Host* host);
 extern void                  callHostPacketHandler (char* data, 

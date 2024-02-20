@@ -4,6 +4,7 @@
 #include <arpa/inet.h>
 #include <strings.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 #include "defines.h"
 #include "clientObject.h"
@@ -13,7 +14,7 @@ socketfd createSocket(socketfd value)
 {
     socketfd sockfd = value;
     if (IS_INVALID_FD(socket)) { 
-        perror("socket creation failed"); 
+        perror("\nSocket creation failed"); 
         return ERROR;
     }   
     return sockfd;
@@ -30,8 +31,20 @@ int bindSocket(socketfd sockfd, Host* localhost)
     if(FAILURE(bind(sockfd, 
                     boundAddress, 
                     sizeof(localhost->address)))) {
-        perror("Failed to bind socket!");
+        perror("\nFailed to bind socket!");
         return ERROR;
     }
     return SUCCESS;
+}
+int setSocketNonBlock(socketfd sockfd)
+{    
+    int flags = fcntl(sockfd, F_GETFL, 0);
+    if (flags == -1) {
+        return ERROR;
+    }
+    if (fcntl(sockfd, F_SETFL, flags | O_NONBLOCK) == -1) {
+        perror("Error setting socket to non-blocking mode");
+        return ERROR;
+    }
+    return SUCCESS; 
 }

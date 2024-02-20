@@ -24,19 +24,24 @@ typedef struct threadPool_T {
 
 static void *executeTask(void *arg);
 
-// Initialize the thread pool
-void initThreadPool(threadPool_T *pool) 
+int createThreadPool(threadPool_T **pool) 
 {
-    pthread_mutex_init (&pool->lock, NULL);
-    pthread_cond_init  (&pool->notify, NULL);
-    pool->task_count = 0;
-    pool->task_head  = 0;
-    pool->task_tail  = 0;
-    pool->shutdown   = 0;
+    *pool = (threadPool_T*)calloc(1, sizeof(threadPool_T));
+    if ((*pool) == NULL) {
+        return -1;
+    }
+
+    pthread_mutex_init (&(*pool)->lock, NULL);
+    pthread_cond_init  (&(*pool)->notify, NULL);
+    (*pool)->task_count = 0;
+    (*pool)->task_head  = 0;
+    (*pool)->task_tail  = 0;
+    (*pool)->shutdown   = 0;
 
     for (int i = 0; i < BB_MAX_THREADS; i++) {
-        pthread_create(&pool->threads[i], NULL, executeTask, pool);
+        pthread_create(&(*pool)->threads[i], NULL, executeTask, (*pool));
     }
+    return 0;
 }
 
 // Execute the task
@@ -72,7 +77,7 @@ static void *executeTask(void *arg)
 // Add a task to the thread pool
 void addTaskToThreadPool(threadPool_T *pool, void (*function)(void *), void *argument) 
 {
-    pthread_mutex_lock(&pool->lock);
+    pthread_mutex_lock  (&pool->lock);
 
     if (pool->task_count == BB_MAX_TASKS) {
         fprintf              (stderr, "Task queue is full!\n");
@@ -91,17 +96,22 @@ void addTaskToThreadPool(threadPool_T *pool, void (*function)(void *), void *arg
 }
 
 // Shutdown the thread pool
-void destroyThreadPool(threadPool_T *pool) 
+void destroyThreadPool(threadPool_T **pool) 
 {
-    pthread_mutex_lock     (&pool->lock);
-    pool->shutdown = 1;
-    pthread_mutex_unlock   (&pool->lock);
-    pthread_cond_broadcast (&pool->notify);
+    if ((*pool) == NULL) {
+        return;
+    }
+    pthread_mutex_lock     (&(*pool)->lock);
+    (*pool)->shutdown = 1;
+    pthread_mutex_unlock   (&(*pool)->lock);
+    pthread_cond_broadcast (&(*pool)->notify);
 
     for (int i = 0; i < BB_MAX_THREADS; i++) {
-        pthread_join(pool->threads[i], NULL);
+        pthread_join((*pool)->threads[i], NULL);
     }
 
-    pthread_mutex_destroy (&pool->lock);
-    pthread_cond_destroy  (&pool->notify);
+    pthread_mutex_destroy (&(*pool)->lock);
+    pthread_cond_destroy  (&(*pool)->notify);
+    free                  (*pool);
+    *pool = NULL;
 }

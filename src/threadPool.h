@@ -6,11 +6,11 @@
 
 typedef struct threadPool_T *threadPool;
 
-void initThreadPool      (threadPool pool);
+int  createThreadPool    (threadPool *pool);
 void addTaskToThreadPool (threadPool pool, 
                           void (*function)(void *), 
                           void *argument);
-void destroyThreadPool   (threadPool pool); 
+void destroyThreadPool   (threadPool *pool); 
 
 
 #endif

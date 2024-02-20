@@ -14,10 +14,10 @@
 #include "clientObject.h"
 
 static pthread_mutex_t copyLock  = PTHREAD_MUTEX_INITIALIZER;
-static pthread_mutex_t cacheLock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t cacheLock[MAX_HOST_CACHES] = {PTHREAD_MUTEX_INITIALIZER};
 
-static Host hostCache     [MAX_HOST_CACHES][MAX_HOSTS_PER_CACHE] = {0};
-static int  cacheOccupancy[MAX_HOST_CACHES]                      = {0};
+static Host* hostCache     [MAX_HOST_CACHES][MAX_HOSTS_PER_CACHE] = {0};
+static int   cacheOccupancy[MAX_HOST_CACHES]                      = {0};
 
 static atomic_int hostIDCounter = ATOMIC_VAR_INIT(0);
 
@@ -66,32 +66,41 @@ void setHostCustomAttr(Host* host, void* ptr)
 }
 void cacheHost(Host* host, int cacheIndex)
 {
-    pthread_mutex_lock   (&cacheLock);
+    pthread_mutex_lock   (&cacheLock[cacheIndex]);
     if (cacheIndex >= MAX_HOST_CACHES) {
         fprintf(stderr, "\n%s", errStrings[STR_ERROR_HOST_CACHE_INDEX]);
         goto unlock;
     }
     if (cacheOccupancy[cacheIndex] < MAX_HOSTS_PER_CACHE) {
-        fastCopyHost(&hostCache[cacheIndex][cacheOccupancy[cacheIndex]], host);
+        hostCache[cacheIndex][cacheOccupancy[cacheIndex]] = host;
         cacheOccupancy[cacheIndex]++;
+        host->isCached = 1;
+    }
+    else {
+        fprintf(stderr, "\nHost cache full, can't add host %s", getIP(host));
     }
 unlock:
-    pthread_mutex_unlock (&cacheLock);
+    pthread_mutex_unlock (&cacheLock[cacheIndex]);
 }
 void clearHostCache(int cacheIndex)
 {
-    pthread_mutex_lock   (&cacheLock);
+    pthread_mutex_lock   (&cacheLock[cacheIndex]);
     if (cacheIndex >= MAX_HOST_CACHES) {
         fprintf(stderr, "\n%s", errStrings[STR_ERROR_HOST_CACHE_INDEX]);
         goto unlock;
     }
+    for (int i = 0; i < cacheOccupancy[cacheIndex]; i++) {
+       Host* hostToDelete = getHostFromCache(cacheIndex, i);
+       hostToDelete->isCached = 0;
+       destroyHost(&hostToDelete);
+    }
     cacheOccupancy[cacheIndex] = 0;
 unlock:
-    pthread_mutex_unlock (&cacheLock);
+    pthread_mutex_unlock (&cacheLock[cacheIndex]);
 }
 Host *getHostFromCache(int cacheIndex, int hostIndex)
 {
-    return hostCache[cacheIndex];
+    return hostCache[cacheIndex][hostIndex];
 }
 const int getCacheOccupancy(int cacheIndex)
 {
@@ -111,10 +120,15 @@ int getHostID(Host *host)
 }
 void destroyHost(Host** host)
 {
-    if (*host != NULL) {
-        free(*host);
-        *host = NULL;
+    if (*host == NULL) {
+        return;
     }
+    if ((*host)->isCached == 1) {
+        return;
+    }
+
+    free(*host);
+    *host = NULL;
 }
 
 void closeConnections(Host* host)
