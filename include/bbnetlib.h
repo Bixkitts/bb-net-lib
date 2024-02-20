@@ -33,9 +33,14 @@ extern int listenForTCP  (Host localhost,
 // IPs are passed in and out in human readable "X.X.X.X" format.
 // IPv6 is not supported yet.
 // createHost returns NULL on failure.
-extern Host  createHost  (char *ip, 
-                          uint16_t port);       
-extern void  destroyHost (Host *host);
+extern Host  createHost        (char *ip, 
+                                uint16_t port);       
+extern void  destroyHost       (Host *host);
+// Host custom attributes can be used to load and store
+// a custom pointer in a Host object
+extern void *getHostCustomAttr (Host host); 
+extern void  setHostCustomAttr (Host host,
+                                void* ptr); 
 
 // IP string is always length 16
 extern const char *getIP            (Host host);
