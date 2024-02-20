@@ -31,12 +31,11 @@ Host* createHost(const char *ip, const uint16_t port)
         return NULL;
     }
     //filling in the data of the host's ip.
-    host->id                 = atomic_load(&hostIDCounter);
     strcpy((char*)host->addressStr, ip);
+    host->id                 = atomic_fetch_add(&hostIDCounter, 1);
     host->address.sin_family = AF_INET;
     host->address.sin_port   = htons(port);
 
-    atomic_fetch_add     (&hostIDCounter, 1);
     inet_pton            (AF_INET, ip, &host->address.sin_addr);
     return host;
 }
@@ -54,6 +53,16 @@ void copyHost(Host* dstHost, Host* srcHost)
                           srcHost, 
                           sizeof(Host));
     pthread_mutex_unlock (&copyLock);
+}
+
+void *getHostCustomAttr(Host* host)
+{
+    return host->customAttribute;
+}
+
+void setHostCustomAttr(Host* host, void* ptr)
+{
+    host->customAttribute = ptr;
 }
 void cacheHost(Host* host, int cacheIndex)
 {

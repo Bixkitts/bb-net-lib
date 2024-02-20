@@ -12,6 +12,7 @@
 
 #define MAX_HOST_CACHES     16
 #define MAX_HOSTS_PER_CACHE 1024
+#define MAX_HOSTS           2048
 
 
 typedef struct Host  // Structure that can be expanded and used to hold any needed info
@@ -24,6 +25,7 @@ typedef struct Host  // Structure that can be expanded and used to hold any need
                                         // This allows the socket from a connection 
                                         // to be saved and reused!
     SSL               *ssl;             // Not NULL if we're connected over SSL
+    void              *customAttribute; // library user can store whatever in here
 } Host;
 
 BBNETAPI extern Host        *createHost            (const char *ip, 
@@ -40,6 +42,11 @@ extern void                  fastCopyHost          (Host* dstHost,
 // Thread safe copy
 BBNETAPI extern void         copyHost              (Host* dstHost, 
                                                     Host* srcHost);
+
+// Custom attribute stuff
+BBNETAPI extern void        *getHostCustomAttr     (Host* host); 
+BBNETAPI extern void         setHostCustomAttr     (Host* host,
+                                                    void* ptr); 
 
 // Host Caching functions
 BBNETAPI extern void         cacheHost             (Host* host, 
