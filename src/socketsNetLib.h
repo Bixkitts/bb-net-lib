@@ -18,5 +18,7 @@ extern void     closeSocket       (socketfd socket);
 extern int      bindSocket        (socketfd sockfd, 
                                    Host* localhost);
 extern int      setSocketNonBlock (socketfd sockfd);
+extern int      setSocketTimeout  (socketfd sockfd, 
+                                   long secs);
 
 #endif

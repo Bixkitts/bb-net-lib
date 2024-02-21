@@ -11,7 +11,9 @@
 #include <string.h>
 #include <stdatomic.h>
 
+#include "socketsNetLib.h"
 #include "clientObject.h"
+#include "encryption.h"
 
 static pthread_mutex_t copyLock  = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t cacheLock[MAX_HOST_CACHES] = {PTHREAD_MUTEX_INITIALIZER};
@@ -127,8 +129,27 @@ void destroyHost(Host** host)
         return;
     }
 
+    /* TLS stuff... */
+    SSL_shutdown ((*host)->ssl);
+    SSL_free     ((*host)->ssl);
+
+    closeSocket  (getSocket(*host));
+
     free(*host);
     *host = NULL;
+}
+
+int attemptTLSHandshake(Host* host, SSL_CTX *sslContext)
+{
+    host->ssl = SSL_new(sslContext);
+    SSL_set_fd(host->ssl, getSocket(host));
+
+    if (SSL_accept(host->ssl) <= 0) {
+        destroyHost         (&host);
+        ERR_print_errors_fp (stderr);
+        return -1;
+    }
+    return 0;
 }
 
 void closeConnections(Host* host)
@@ -150,7 +171,7 @@ bool isCommunicating(const Host* host)
     return host->bListen;
 }
 
-void setSocket(Host* host, socketfd sockfd)
+void setSocket(Host *restrict host, socketfd sockfd)
 {
     host->associatedSocket = sockfd;
 }
@@ -158,4 +179,9 @@ void setSocket(Host* host, socketfd sockfd)
 socketfd getSocket(const Host* host)
 {
     return host->associatedSocket;
+}
+
+SSL *getHostSSL(const Host *restrict host)
+{
+    return host->ssl;
 }

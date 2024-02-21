@@ -48,3 +48,18 @@ int setSocketNonBlock(socketfd sockfd)
     }
     return SUCCESS; 
 }
+int setSocketTimeout(socketfd sockfd, long secs)
+{
+    struct timeval timeout = {};
+    timeout.tv_sec  = secs;   // 5 seconds
+    timeout.tv_usec = 0;  // 0 microseconds
+    if (FAILURE(setsockopt(sockfd, 
+                           SOL_SOCKET, 
+                           SO_RCVTIMEO, 
+                           (char *)&timeout, sizeof(timeout)))) 
+    {
+        perror("\nSetsockopt error");
+    }
+
+    return 0;
+}

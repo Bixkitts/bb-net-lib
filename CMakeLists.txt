@@ -17,6 +17,7 @@ target_sources(${PROJECT_NAME}
         src/clientObject.c
         src/socketsNetLib.c
         src/threadPool.c
+        src/encryption.c
 )
 
 target_include_directories(${PROJECT_NAME}
@@ -35,6 +36,10 @@ endif()
 
 target_compile_options(${PROJECT_NAME} PRIVATE -fvisibility=hidden $<$<CONFIG:Debug>:-O0;-g3;-ggdb;-Wall> $<$<CONFIG:Release>:-O3;>)
 target_compile_definitions(${PROJECT_NAME} PRIVATE $<$<CONFIG:Debug>: DEBUG>)
+
+find_package(OpenSSL REQUIRED)
+include_directories(${OPENSSL_INCLUDE_DIR})
+target_link_libraries(${PROJECT_NAME} ${OPENSSL_LIBRARIES})
 ###############################################################
 # ------------- Test Binaries --------------------------------#
 ###############################################################

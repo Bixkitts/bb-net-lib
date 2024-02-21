@@ -10,8 +10,28 @@
 #include "clientObject.h"
 #include "listen.h"
 #include "socketsNetLib.h"
+#include "send.h"
 
 #define SEND_LOCK_COUNT 16
+
+typedef enum {
+    PACKET_SENDER_TCP,
+    PACKET_SENDER_TLS,
+    PACKET_SENDER_COUNT
+}PacketSenderType;
+
+// Global switch for how packets should be sent
+PacketSenderType packetSenderType = PACKET_SENDER_TCP;
+
+typedef ssize_t (*PacketSender)(packetSendingArgs*);
+static inline ssize_t send_TCP_unencrypted (packetSendingArgs *args);
+static inline ssize_t send_TCP_encrypted   (packetSendingArgs *args);
+static PacketSender send_variants[PACKET_SENDER_COUNT] = 
+{ 
+            send_TCP_unencrypted,
+            send_TCP_encrypted
+};
+
 
 // We use these locks to make each TCP transfer on a socket a critical section
 // and do it on multiple sockets simultaneously.
@@ -32,7 +52,15 @@ int sendDataUDP(const char *data, const ssize_t datasize, Host *remotehost)
     return SUCCESS;
 }
 
-int sendDataTCP(const char *data, const ssize_t datasize, Host *remotehost)
+static inline ssize_t send_TCP_unencrypted (packetSendingArgs *args)
+{
+    return send(getSocket(args->remotehost), args->buffer, args->bytesToProcess, 0);
+}
+static inline ssize_t send_TCP_encrypted (packetSendingArgs *args)
+{
+    return SSL_write(getHostSSL(args->remotehost), args->buffer, args->bytesToProcess);
+}
+int sendDataTCP(const char *data, const size_t datasize, Host *remotehost)
 {
 #ifdef DEBUG
     fprintf(stderr, "\nSending TCP packet...");
@@ -40,7 +68,10 @@ int sendDataTCP(const char *data, const ssize_t datasize, Host *remotehost)
     int lockIndex = getHostID(remotehost) % SEND_LOCK_COUNT;
     pthread_mutex_lock   (&sendLocks[lockIndex]);
 
-    int status = send(getSocket(remotehost), data, datasize, 0);
+    packetSendingArgs sendArgs = {remotehost, data, datasize};
+
+    // A switch to send packets in different ways
+    ssize_t status = send_variants[packetSenderType](&sendArgs);
 
     if (status == -1) {
         perror("\nFailed to send TCP message");

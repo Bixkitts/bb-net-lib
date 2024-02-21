@@ -12,12 +12,34 @@
 #include "clientObject.h"
 #include "listen.h"
 #include "defines.h"
+#include "encryption.h"
 #include "socketsNetLib.h"
 #include "threadPool.h"
 #include "send.h"
 
 threadPool TCPthreadPool = NULL;
 threadPool UDPthreadPool = NULL;
+
+// global sslContext TCP... move this?
+static SSL_CTX *sslContext = NULL;
+
+typedef enum {
+    PACKET_RECEIVER_TCP,
+    PACKET_RECEIVER_TLS,
+    PACKET_RECEIVER_COUNT
+}PacketReceiverType;
+
+// Global switch for what type of TCP recv() we'll be doing
+PacketReceiverType packetReceiverType = PACKET_RECEIVER_TCP;
+
+typedef ssize_t (*PacketReceiver)(packetReceptionArgs*);
+static inline ssize_t recv_TCP_unencrypted (packetReceptionArgs *restrict args);
+static inline ssize_t recv_TCP_encrypted   (packetReceptionArgs *restrict args);
+static PacketReceiver recv_variants[PACKET_RECEIVER_COUNT] = 
+{ 
+            recv_TCP_unencrypted,
+            recv_TCP_encrypted
+};
 
 static void destroyPacketReceptionArgs (packetReceptionArgs **args);
 
@@ -87,7 +109,24 @@ int listenForUDP(Host *localhost, void (*packet_handler)(char*, ssize_t, Host*))
 
     return SUCCESS;
 }
+static void acceptConnection(Host *localhost, Host *remotehost)
+{
+    socklen_t        addrLen       = 0;
+    struct sockaddr *remoteAddress = NULL;
+    // Need to cast the type because that's
+    // just how sockets work
+    remoteAddress = ( struct sockaddr *)&remotehost->address;
+    addrLen       = sizeof(remotehost->address);
 
+    setSocket        (remotehost, 
+                      createSocket(accept(getSocket(localhost), 
+                                          remoteAddress, 
+                                          &addrLen)));
+    setCommunicating (remotehost);
+    if (packetReceiverType == PACKET_RECEIVER_TLS) {
+        attemptTLSHandshake (remotehost, sslContext);
+    }
+}
 /*
  * Core TCP listening function.
  * Call it once and it will block
@@ -100,20 +139,23 @@ int listenForTCP(Host *localhost,
 #ifdef DEBUG
     fprintf(stderr, "\nListening for TCP connections...");
 #endif
-    packetReceptionArgs *receptionArgs   = NULL;
-    socklen_t            addrLen         = 0;
-    struct sockaddr     *remoteAddress   = NULL;
-    Host                *remotehost      = NULL;
+    packetReceptionArgs *receptionArgs = NULL;
+    Host                *remotehost    = NULL;
 
     createThreadPool (&TCPthreadPool);
     setSocket        (localhost, createSocket(SOCK_DEFAULT_TCP));
 
-    if (FAILURE(bindSocket(getSocket(localhost), localhost)))
-    {
+    /* TLS setup */ 
+    if (packetReceiverType == PACKET_RECEIVER_TLS) {
+        sslContext = createSSLContext();
+        configureSSLContext(sslContext);
+    }
+    /* --------- */
+
+    if (FAILURE(bindSocket(getSocket(localhost), localhost))) {
         perror("\nFailed to listen for TCP");
         return ERROR;
     }
-
     setCommunicating(localhost);
     if (FAILURE(listen(getSocket(localhost), SOCK_BACKLOG))) {
         printf("\nError: listen() failed with errno %d: %s\n", errno, strerror(errno));
@@ -123,37 +165,13 @@ int listenForTCP(Host *localhost,
     while(isCommunicating(localhost)) 
     {
         remotehost = createHost("", 0000);
-        addrLen    = sizeof(remotehost->address);
-
-        // Need to cast the type because that's
-        // just how sockets work
-        remoteAddress = ( struct sockaddr *)&remotehost->address;
-
-        // The socket file descriptor in "remotehost" becomes an accepted
-        // TCP connection, configure it and pass it over
-        // to the thread pool.
-        setSocket        (remotehost, createSocket(accept(getSocket(localhost), remoteAddress, &addrLen)));
-        setCommunicating (remotehost);
-
-        // 5 second timeout to close socket
-        // -----------------------------------
-        struct timeval timeout = {};
-        timeout.tv_sec  = 5;   // 5 seconds
-        timeout.tv_usec = 0;  // 0 microseconds
-        if (FAILURE(setsockopt(getSocket(remotehost), 
-                               SOL_SOCKET, 
-                               SO_RCVTIMEO, 
-                               (char *)&timeout, sizeof(timeout)))) 
-        {
-            perror("\nSetsockopt error");
-        }
-        // ----------------------------------
+        acceptConnection (localhost, remotehost);
+        setSocketTimeout (getSocket(remotehost), 5);
 
         receptionArgs = (packetReceptionArgs*)calloc(1, sizeof(packetReceptionArgs));
         if (receptionArgs == NULL) {
             goto early_exit;
         }
-
         // Remotehost pointer is now owned by new thread
         receptionArgs->remotehost     = remotehost;
         receptionArgs->localhost      = localhost;
@@ -161,27 +179,37 @@ int listenForTCP(Host *localhost,
         receptionArgs->bytesToProcess = 0;
         receptionArgs->buffer         = (char*)calloc(PACKET_BUFFER_SIZE*5, sizeof(char));
         if (receptionArgs->buffer == NULL) {
-            free (receptionArgs);
+            destroyHost (&remotehost);
+            free        (receptionArgs);
             goto early_exit;
         }
 
         addTaskToThreadPool(TCPthreadPool, (void*)receiveTCPpackets, receptionArgs);
     }
-
 early_exit: 
     destroyThreadPool (&TCPthreadPool);
     closeSocket       (getSocket(localhost));
-
-    if (isCommunicating(localhost)) {
-        closeConnections(localhost);
-    }
-    if (isCommunicating(remotehost)) {
-        closeConnections(remotehost);
-    }
-
+    SSL_CTX_free      (sslContext);
+    destroyHost       (&localhost);
     return SUCCESS;
 }
-
+static inline ssize_t recv_TCP_unencrypted(packetReceptionArgs *restrict args)
+{
+    ssize_t numBytes = 0;
+    numBytes = recv(getSocket(args->remotehost), 
+                     args->buffer, 
+                     PACKET_BUFFER_SIZE, 
+                     0);
+    return numBytes;
+}
+static inline ssize_t recv_TCP_encrypted(packetReceptionArgs *restrict args)
+{
+    ssize_t numBytes = 0;
+    numBytes = SSL_read(getHostSSL(args->remotehost), 
+                        args->buffer, 
+                        PACKET_BUFFER_SIZE);
+    return numBytes;
+}
 void receiveTCPpackets(packetReceptionArgs *args) 
 {
     //addTaskToThreadPool(TCPthreadPool, (void*)processTCPpackets, args);
@@ -191,10 +219,7 @@ void receiveTCPpackets(packetReceptionArgs *args)
     ssize_t numBytes = 0;
     
     while(isCommunicating(args->remotehost)) {
-        numBytes = recv(getSocket(args->remotehost), 
-                         args->buffer, 
-                         PACKET_BUFFER_SIZE, 
-                         0);
+        numBytes = recv_variants[packetReceiverType](args);
         if (numBytes > 0) {
             args->packet_handler(args->buffer, numBytes, args->remotehost); 
             sleep(1);

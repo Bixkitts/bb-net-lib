@@ -53,6 +53,11 @@ BBNETAPI extern void         copyHost              (Host* dstHost,
 BBNETAPI extern void        *getHostCustomAttr     (Host* host); 
 BBNETAPI extern void         setHostCustomAttr     (Host* host,
                                                     void* ptr); 
+// TLS stuff
+// This expects an accepted TLS socket
+extern int                   attemptTLSHandshake   (Host* host, 
+                                                    SSL_CTX *sslContext);
+extern SSL                  *getHostSSL            (const Host *restrict host);
 
 // Host Caching functions
 BBNETAPI extern void         cacheHost             (Host* host, 

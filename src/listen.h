@@ -25,5 +25,6 @@ BBNETAPI int listenForTCP(Host *localhost,
 
 
 void receiveTCPpackets   (packetReceptionArgs *args);
+void receiveTLSpackets   (packetReceptionArgs *args);
 
 #endif
