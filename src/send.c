@@ -65,13 +65,11 @@ int sendDataTCP(const char *data, const size_t datasize, Host *remotehost)
 #ifdef DEBUG
     fprintf(stderr, "\nSending TCP packet...");
 #endif
-    int lockIndex = getHostID(remotehost) % SEND_LOCK_COUNT;
+    int               lockIndex = getHostID(remotehost) % SEND_LOCK_COUNT;
     pthread_mutex_lock   (&sendLocks[lockIndex]);
-
-    packetSendingArgs sendArgs = {remotehost, data, datasize};
-
+    packetSendingArgs sendArgs  = {remotehost, data, datasize};
     // A switch to send packets in different ways
-    ssize_t status = send_variants[packetSenderType](&sendArgs);
+    ssize_t           status    = send_variants[packetSenderType](&sendArgs);
 
     if (status == -1) {
         perror("\nFailed to send TCP message");
