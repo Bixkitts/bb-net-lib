@@ -145,7 +145,6 @@ int attemptTLSHandshake(Host* host, SSL_CTX *sslContext)
     SSL_set_fd(host->ssl, getSocket(host));
 
     if (SSL_accept(host->ssl) <= 0) {
-        destroyHost         (&host);
         ERR_print_errors_fp (stderr);
         return -1;
     }
