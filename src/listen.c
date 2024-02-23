@@ -51,19 +51,7 @@ int listenForUDP(Host *localhost, void (*packet_handler)(char*, ssize_t, Host*))
     socklen_t      len                        = 0;
     char           buffer[PACKET_BUFFER_SIZE] = { 0 };
 
-    struct timeval timeout;
-    timeout.tv_sec = 5;   // 5 seconds
-    timeout.tv_usec = 0;  // 0 microseconds
-
-    if (FAILURE(setsockopt(sockfd, 
-                           SOL_SOCKET, 
-                           SO_RCVTIMEO, 
-                           (char *)&timeout, 
-                           sizeof(timeout)))) 
-    {
-        perror("setsockopt");
-    }
-
+    setSocketTimeout(sockfd, 5);
     if (FAILURE(bindSocket(sockfd, 
                            localhost)))
     {
@@ -109,23 +97,25 @@ int listenForUDP(Host *localhost, void (*packet_handler)(char*, ssize_t, Host*))
 
     return SUCCESS;
 }
-static void acceptConnection(Host *localhost, Host *remotehost)
+static int acceptConnection(Host *localhost, Host *remotehost)
 {
     socklen_t        addrLen       = 0;
     struct sockaddr *remoteAddress = NULL;
+    socketfd         sockfd        = 0;
     // Need to cast the type because that's
     // just how sockets work
     remoteAddress = ( struct sockaddr *)&remotehost->address;
     addrLen       = sizeof(remotehost->address);
 
-    setSocket        (remotehost, 
-                      createSocket(accept(getSocket(localhost), 
-                                          remoteAddress, 
-                                          &addrLen)));
-    setCommunicating (remotehost);
-    if (packetReceiverType == PACKET_RECEIVER_TLS) {
-        attemptTLSHandshake (remotehost, sslContext);
+    sockfd = createSocket(accept(getSocket(localhost), 
+                                 remoteAddress, 
+                                 &addrLen));
+    if (sockfd < 0) {
+        return -1;
     }
+    setSocket        (remotehost, sockfd);
+    setCommunicating (remotehost);
+    return 0;
 }
 /*
  * Core TCP listening function.
@@ -141,6 +131,7 @@ int listenForTCP(Host *localhost,
 #endif
     packetReceptionArgs *receptionArgs = NULL;
     Host                *remotehost    = NULL;
+    int                  er            = 0;
 
     createThreadPool (&TCPthreadPool);
     setSocket        (localhost, createSocket(SOCK_DEFAULT_TCP));
@@ -165,8 +156,20 @@ int listenForTCP(Host *localhost,
     while(isCommunicating(localhost)) 
     {
         remotehost = createHost("", 0000);
+        er =
         acceptConnection (localhost, remotehost);
+        if (er < 0) {
+            destroyHost(&remotehost);
+            continue;
+        }
         setSocketTimeout (getSocket(remotehost), 5);
+        if (packetReceiverType == PACKET_RECEIVER_TLS) {
+            er = attemptTLSHandshake (remotehost, sslContext);
+            if (er < 0) {
+                destroyHost(&remotehost);
+                continue;
+            }
+        }
 
         receptionArgs = (packetReceptionArgs*)calloc(1, sizeof(packetReceptionArgs));
         if (receptionArgs == NULL) {
