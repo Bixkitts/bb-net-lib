@@ -40,7 +40,7 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE $<$<CONFIG:Debug>: DEBUG>)
 
 find_package(OpenSSL REQUIRED)
 include_directories(${OPENSSL_INCLUDE_DIR})
-target_link_libraries(${PROJECT_NAME} ${OPENSSL_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} PUBLIC ${OPENSSL_LIBRARIES})
 ###############################################################
 # ------------- Test Binaries --------------------------------#
 ###############################################################
