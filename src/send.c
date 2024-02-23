@@ -175,6 +175,7 @@ int connectToTCP(Host *remotehost)
         perror("\nConnect failed");
         return ERROR;
     }
-    setSocket(remotehost, sockfd);
+    setSocketTimeout (sockfd, 5);
+    setSocket        (remotehost, sockfd);
     return SUCCESS;
 }

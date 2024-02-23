@@ -60,6 +60,13 @@ int setSocketTimeout(socketfd sockfd, long secs)
     {
         perror("\nSetsockopt error");
     }
+    if (FAILURE(setsockopt(sockfd, 
+                           SOL_SOCKET, 
+                           SO_SNDTIMEO, 
+                           (char *)&timeout, sizeof(timeout)))) 
+    {
+        perror("\nSetsockopt error");
+    }
 
     return 0;
 }
