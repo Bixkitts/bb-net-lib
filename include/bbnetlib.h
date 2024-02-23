@@ -11,6 +11,10 @@ __BEGIN_DECLS
 typedef int    socketfd;
 typedef struct Host_Internal *Host;
 
+// All configuration functions.
+// Call these before any of the others!
+extern void enableTLS    ();
+
 // All connect and send functions.
 extern int sendDataUDP   (const char *buffer, 
                           const ssize_t bufsize, 

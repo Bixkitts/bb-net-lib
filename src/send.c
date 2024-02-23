@@ -12,20 +12,15 @@
 #include "socketsNetLib.h"
 #include "send.h"
 
-#define SEND_LOCK_COUNT 16
+#define SEND_LOCK_COUNT 32
 
-typedef enum {
-    PACKET_SENDER_TCP,
-    PACKET_SENDER_TLS,
-    PACKET_SENDER_COUNT
-}PacketSenderType;
 
 // Global switch for how packets should be sent
 PacketSenderType packetSenderType = PACKET_SENDER_TCP;
 
-typedef ssize_t (*PacketSender)(packetSendingArgs*);
-static inline ssize_t send_TCP_unencrypted (packetSendingArgs *args);
-static inline ssize_t send_TCP_encrypted   (packetSendingArgs *args);
+typedef ssize_t (*PacketSender)(PacketSendingArgs*);
+static inline ssize_t send_TCP_unencrypted (PacketSendingArgs *args);
+static inline ssize_t send_TCP_encrypted   (PacketSendingArgs *args);
 static PacketSender send_variants[PACKET_SENDER_COUNT] = 
 { 
             send_TCP_unencrypted,
@@ -36,6 +31,11 @@ static PacketSender send_variants[PACKET_SENDER_COUNT] =
 // We use these locks to make each TCP transfer on a socket a critical section
 // and do it on multiple sockets simultaneously.
 static pthread_mutex_t sendLocks[SEND_LOCK_COUNT]  = {PTHREAD_MUTEX_INITIALIZER};
+
+void setTCP_sendType (PacketSenderType type)
+{
+    packetSenderType = type;
+}
 
 int sendDataUDP(const char *data, const ssize_t datasize, Host *remotehost)
 {
@@ -52,11 +52,11 @@ int sendDataUDP(const char *data, const ssize_t datasize, Host *remotehost)
     return SUCCESS;
 }
 
-static inline ssize_t send_TCP_unencrypted (packetSendingArgs *args)
+static inline ssize_t send_TCP_unencrypted (PacketSendingArgs *args)
 {
     return send(getSocket(args->remotehost), args->buffer, args->bytesToProcess, 0);
 }
-static inline ssize_t send_TCP_encrypted (packetSendingArgs *args)
+static inline ssize_t send_TCP_encrypted (PacketSendingArgs *args)
 {
     return SSL_write(getHostSSL(args->remotehost), args->buffer, args->bytesToProcess);
 }
@@ -67,7 +67,7 @@ int sendDataTCP(const char *data, const size_t datasize, Host *remotehost)
 #endif
     int               lockIndex = getHostID(remotehost) % SEND_LOCK_COUNT;
     pthread_mutex_lock   (&sendLocks[lockIndex]);
-    packetSendingArgs sendArgs  = {remotehost, data, datasize};
+    PacketSendingArgs sendArgs  = {remotehost, data, datasize};
     // A switch to send packets in different ways
     ssize_t           status    = send_variants[packetSenderType](&sendArgs);
 
@@ -105,7 +105,7 @@ int sendDataTCPandRecv(const char *data,
     recvArgs->localhost      = NULL;
     recvArgs->packet_handler = packet_handler;
     recvArgs->bytesToProcess = 0;
-    recvArgs->buffer         = (char*)calloc(PACKET_BUFFER_SIZE*5, sizeof(char));
+    recvArgs->buffer         = (char*)calloc(PACKET_BUFFER_SIZE*2, sizeof(char));
     if (recvArgs->buffer == NULL) {
         free (recvArgs);
         return ERROR;

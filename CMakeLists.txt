@@ -18,6 +18,7 @@ target_sources(${PROJECT_NAME}
         src/socketsNetLib.c
         src/threadPool.c
         src/encryption.c
+        src/configurer.c
 )
 
 target_include_directories(${PROJECT_NAME}

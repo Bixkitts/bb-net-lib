@@ -7,7 +7,13 @@ typedef struct {
     Host       *remotehost;
     const char *buffer;
     ssize_t     bytesToProcess;
-} packetSendingArgs;
+} PacketSendingArgs;
+
+typedef enum {
+    PACKET_SENDER_TCP,
+    PACKET_SENDER_TLS,
+    PACKET_SENDER_COUNT
+}PacketSenderType;
 
 BBNETAPI int sendDataUDP  (const char *data, 
                            const ssize_t datasize, 
@@ -16,5 +22,8 @@ BBNETAPI int sendDataTCP  (const char *data,
                            const size_t datasize, 
                            Host *remotehost);
 BBNETAPI int connectToTCP (Host *remotehost);
+
+
+void setTCP_sendType (PacketSenderType type);
 
 #endif

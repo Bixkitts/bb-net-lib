@@ -23,14 +23,9 @@ threadPool UDPthreadPool = NULL;
 // global sslContext TCP... move this?
 static SSL_CTX *sslContext = NULL;
 
-typedef enum {
-    PACKET_RECEIVER_TCP,
-    PACKET_RECEIVER_TLS,
-    PACKET_RECEIVER_COUNT
-}PacketReceiverType;
 
 // Global switch for what type of TCP recv() we'll be doing
-PacketReceiverType packetReceiverType = PACKET_RECEIVER_TCP;
+static PacketReceiverType packetReceiverType = PACKET_RECEIVER_TCP;
 
 typedef ssize_t (*PacketReceiver)(packetReceptionArgs*);
 static inline ssize_t recv_TCP_unencrypted (packetReceptionArgs *restrict args);
@@ -42,6 +37,11 @@ static PacketReceiver recv_variants[PACKET_RECEIVER_COUNT] =
 };
 
 static void destroyPacketReceptionArgs (packetReceptionArgs **args);
+
+void setTCP_receiveType(PacketReceiverType type)
+{
+    packetReceiverType = type;
+}
 
 int listenForUDP(Host *localhost, void (*packet_handler)(char*, ssize_t, Host*))    //Should be called on it's own thread as the while loop is blocking 
 {    
