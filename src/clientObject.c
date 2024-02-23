@@ -128,10 +128,16 @@ void destroyHost(Host** host)
     if ((*host)->isCached == 1) {
         return;
     }
-
-    /* TLS stuff... */
-    SSL_shutdown ((*host)->ssl);
-    SSL_free     ((*host)->ssl);
+    if ((*host)->ssl != NULL) {
+        int shutdownResult;
+        do {
+            shutdownResult = SSL_shutdown((*host)->ssl);
+        } while (shutdownResult == 0);
+        if (shutdownResult < 0) {
+            // Handle error if necessary
+        }
+        SSL_free((*host)->ssl);
+    }
 
     closeSocket  (getSocket(*host));
 
