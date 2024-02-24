@@ -215,17 +215,16 @@ static inline ssize_t recv_TCP_encrypted(packetReceptionArgs *restrict args)
 }
 void receiveTCPpackets(packetReceptionArgs *args) 
 {
-    //addTaskToThreadPool(TCPthreadPool, (void*)processTCPpackets, args);
 #ifdef DEBUG
     fprintf(stderr, "\nReceiving a TCP packet in a thread...");
 #endif
     ssize_t numBytes = 0;
     
     while(isCommunicating(args->remotehost)) {
+        // This is supposed to block until bytes are received
         numBytes = recv_variants[packetReceiverType](args);
         if (numBytes > 0) {
             args->packet_handler(args->buffer, numBytes, args->remotehost); 
-            sleep(1);
         }
         else {
             fprintf(stderr, "\nConnection shutdown triggered by recv()...");
