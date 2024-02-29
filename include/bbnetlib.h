@@ -46,6 +46,14 @@ extern void *getHostCustomAttr (Host host);
 extern void  setHostCustomAttr (Host host,
                                 void* ptr); 
 
+// Multicast Functions
+int  multicastTCP   (const char *data, 
+                     const ssize_t datasize, 
+                     int cacheIndex);
+void cacheHost      (Host* host, 
+                     int cacheIndex);
+void clearHostCache (int cacheIndex);
+
 // IP string is always length 16
 extern const char *getIP            (Host host);
 extern uint16_t    getPort          (Host host);
