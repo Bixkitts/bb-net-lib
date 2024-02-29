@@ -50,7 +50,7 @@ extern void  setHostCustomAttr (Host host,
 int  multicastTCP   (const char *data, 
                      const ssize_t datasize, 
                      int cacheIndex);
-void cacheHost      (Host* host, 
+void cacheHost      (Host host, 
                      int cacheIndex);
 void clearHostCache (int cacheIndex);
 
