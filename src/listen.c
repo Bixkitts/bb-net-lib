@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <malloc.h>
 #include <fcntl.h>
+#include <signal.h>
 
 #include "clientObject.h"
 #include "listen.h"
@@ -117,6 +118,10 @@ static int acceptConnection(Host *localhost, Host *remotehost)
     setCommunicating (remotehost);
     return 0;
 }
+static void sigpipe_handler(int signum)
+{
+    fprintf(stderr, "\n Attempted to write to closed socket.\n");
+}
 /*
  * Core TCP listening function.
  * Call it once and it will block
@@ -132,6 +137,8 @@ int listenForTCP(Host *localhost,
     packetReceptionArgs *receptionArgs = NULL;
     Host                *remotehost    = NULL;
     int                  er            = 0;
+
+    signal           (SIGPIPE, sigpipe_handler);
 
     createThreadPool (&TCPthreadPool);
     setSocket        (localhost, createSocket(SOCK_DEFAULT_TCP));
