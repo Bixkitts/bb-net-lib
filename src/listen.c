@@ -24,6 +24,7 @@ threadPool UDPthreadPool = NULL;
 // global sslContext TCP... move this?
 static SSL_CTX *sslContext = NULL;
 
+static void sigpipeIgnorer();
 
 // Global switch for what type of TCP recv() we'll be doing
 static PacketReceiverType packetReceiverType = PACKET_RECEIVER_TCP;
@@ -118,9 +119,16 @@ static int acceptConnection(Host *localhost, Host *remotehost)
     setCommunicating (remotehost);
     return 0;
 }
-static void sigpipe_handler(int signum)
+
+static void sigpipeIgnorer()
 {
-    fprintf(stderr, "\n Attempted to write to closed socket.\n");
+    static sigset_t set;
+    sigemptyset (&set);
+    sigaddset(&set, SIGPIPE);
+    if (pthread_sigmask(SIG_BLOCK, &set, NULL) != 0) {
+        fprintf(stderr, "\nError setting SIGPIPE signal mask. Exiting...\n");
+        exit(1);
+    }
 }
 /*
  * Core TCP listening function.
@@ -138,7 +146,7 @@ int listenForTCP(Host *localhost,
     Host                *remotehost    = NULL;
     int                  er            = 0;
 
-    signal           (SIGPIPE, sigpipe_handler);
+    sigpipeIgnorer();
 
     createThreadPool (&TCPthreadPool);
     setSocket        (localhost, createSocket(SOCK_DEFAULT_TCP));
