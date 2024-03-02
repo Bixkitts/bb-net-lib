@@ -66,6 +66,8 @@ void yourTCPpacketHandler (char* receivedPacketData,
                            ssize_t sizeOfPacket, 
                            Host hostThatSentThePacket)
 {
+    // Enable TLS encryption
+    enableEncryption();
     Host remotehost = hostThatSentThePacket;
     // Send some data back
     const char data[] = "Hello there!";
@@ -146,8 +148,10 @@ Hit me up and help me write it.
 
 Request features by opening an issue.
 
+## Encryption?
+Yes, just enableEncryption() for TLS and have a certificate and key for it next to the binary.
+
 ## Planned Features
-- OpenSSL Transport Layer Security (TLS)
 - Websockets functions
 - IPv6 support
 - Multiplatform support (Windows)
@@ -155,4 +159,4 @@ Request features by opening an issue.
 - Maybe JSON parsing
 
 ## Known Issues, Beware!
-Transmissions are currently not encrypted.
+Multicasts are blocking
