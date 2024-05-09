@@ -95,6 +95,10 @@ int sendDataTCP(const char *data, const size_t datasize, Host *remotehost)
     return SUCCESS;
 }
 
+/*
+ * TODO: Not currently working,
+ * make it work.
+ */
 int sendDataTCPandRecv(const char *data, 
                        const ssize_t datasize, 
                        Host *remotehost, 
@@ -206,7 +210,6 @@ int connectToTCP(Host *remotehost)
         perror("\nConnect failed");
         return ERROR;
     }
-    setSocketTimeout (sockfd, 5);
     setSocket        (remotehost, sockfd);
     return SUCCESS;
 }

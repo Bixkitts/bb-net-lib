@@ -48,6 +48,10 @@ int setSocketNonBlock(socketfd sockfd)
     }
     return SUCCESS; 
 }
+/*
+ * This only works for blocking sockets,
+ * don't use.
+ */
 int setSocketTimeout(socketfd sockfd, long secs)
 {
     struct timeval timeout = {};

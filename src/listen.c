@@ -53,7 +53,6 @@ int listenForUDP(Host *localhost, void (*packet_handler)(char*, ssize_t, Host*))
     socklen_t      len                        = 0;
     char           buffer[PACKET_BUFFER_SIZE] = { 0 };
 
-    setSocketTimeout(sockfd, 5);
     if (FAILURE(bindSocket(sockfd, 
                            localhost)))
     {
@@ -190,7 +189,6 @@ int listenForTCP(Host *localhost,
             destroyHost(&remotehost);
             continue;
         }
-        setSocketTimeout (getSocket(remotehost), 5);
         if (packetReceiverType == PACKET_RECEIVER_TLS) {
             er = attemptTLSHandshake (remotehost, sslContext);
             if (er < 0) {
