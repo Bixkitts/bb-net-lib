@@ -25,7 +25,7 @@ typedef struct Host
     socketfd           associatedSocket;// Socket that gets associated with this host.
                                         // This allows the socket from a connection 
                                         // to be saved and reused!
-    volatile bool      bListen;         // Is this host supposed to be currently listening on a thread 
+    bool               bListen;         // Is this host supposed to be currently listening on a thread 
     // Flags I should compress if I have too many
     bool               isCached;        // If the host has been cached,
                                         // it should not be freed until

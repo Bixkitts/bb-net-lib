@@ -159,10 +159,6 @@ int attemptTLSHandshake(Host* host, SSL_CTX *sslContext)
 
 void closeConnections(Host* host)
 {
-    // Should be fine without mutex lock,
-    // is volatile and will only ever
-    // be UNSET asyncronously to break
-    // out of a loop, and not set.
     host->bListen = 0;
 }
 
