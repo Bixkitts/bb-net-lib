@@ -155,8 +155,9 @@ int listenForTCP(Host *localhost,
 
     sigpipeIgnorer();
 
-    createThreadPool (&TCPthreadPool);
-    setSocket        (localhost, createSocket(SOCK_DEFAULT_TCP));
+    createThreadPool  (&TCPthreadPool);
+    setSocket         (localhost, createSocket(SOCK_DEFAULT_TCP));
+    setSocketNonBlock (getSocket(localhost));
 
     /* TLS setup */ 
     if (packetReceiverType == PACKET_RECEIVER_TLS) {
@@ -181,6 +182,7 @@ int listenForTCP(Host *localhost,
         er =
         acceptConnection (localhost, remotehost);
         if (er < 0) {
+            perror("\nError: TLS Accept failed.\n");
             destroyHost(&remotehost);
             continue;
         }
@@ -188,6 +190,7 @@ int listenForTCP(Host *localhost,
         if (packetReceiverType == PACKET_RECEIVER_TLS) {
             er = attemptTLSHandshake (remotehost, sslContext);
             if (er < 0) {
+                perror("\nError: TLS Handshake failed.\n");
                 destroyHost(&remotehost);
                 continue;
             }
