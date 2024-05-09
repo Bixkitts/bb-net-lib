@@ -114,9 +114,6 @@ static int tryAcceptConnection(Host *localhost, Host *remotehost)
                  remoteAddress, 
                  &addrLen));
     if (sockfd < 0) {
-        if (errno == EAGAIN || errno == EWOULDBLOCK) {
-            return RECV_TRYAGAIN;
-        }
         return RECV_ERROR;
     }
     err =
@@ -181,10 +178,8 @@ int listenForTCP(Host *localhost,
     while(isCommunicating(localhost)) 
     {
         remotehost = createHost("", 0000);
-        while (er == RECV_TRYAGAIN) {
-            er =
-            tryAcceptConnection (localhost, remotehost);
-        }
+        er =
+        tryAcceptConnection (localhost, remotehost);
         if (er == RECV_ERROR) {
             destroyHost(&remotehost);
             continue;
