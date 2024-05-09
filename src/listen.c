@@ -191,7 +191,7 @@ int listenForTCP(Host *localhost,
         }
         if (packetReceiverType == PACKET_RECEIVER_TLS) {
             er = attemptTLSHandshake (remotehost, sslContext);
-            if (er < 0) {
+            if (er <= 0) {
                 perror("\nError: TLS Handshake failed.\n");
                 destroyHost(&remotehost);
                 continue;

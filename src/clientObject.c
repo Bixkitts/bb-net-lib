@@ -153,10 +153,18 @@ int attemptTLSHandshake(Host* host, SSL_CTX *sslContext)
 {
     host->ssl = SSL_new(sslContext);
     SSL_set_fd(host->ssl, getSocket(host));
+    int ssl_accept_result = 0;
 
-    if (SSL_accept(host->ssl) <= 0) {
-        ERR_print_errors_fp (stderr);
-        return -1;
+    while (ssl_accept_result <=0) {
+        int ssl_accept_result = SSL_accept(host->ssl);
+        if (SSL_accept(host->ssl) <= 0) {
+            int ssl_error = SSL_get_error(host->ssl, ssl_accept_result);
+            if (ssl_error == SSL_ERROR_WANT_READ || ssl_error == SSL_ERROR_WANT_WRITE) {
+                continue;
+            }
+            ERR_print_errors_fp(stderr);
+            return -1;
+        }
     }
     return 0;
 }
