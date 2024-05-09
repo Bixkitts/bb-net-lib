@@ -6,6 +6,8 @@
 #include "defines.h"
 #include "threadPool.h"
 
+#define RECV_ERROR    -1
+#define RECV_TRYAGAIN -2
 extern threadPool TCPthreadPool;
 extern threadPool UDPthreadPool;
 

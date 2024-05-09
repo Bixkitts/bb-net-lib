@@ -99,7 +99,7 @@ int listenForUDP(Host *localhost, void (*packet_handler)(char*, ssize_t, Host*))
 
     return SUCCESS;
 }
-static int acceptConnection(Host *localhost, Host *remotehost)
+static int tryAcceptConnection(Host *localhost, Host *remotehost)
 {
     socklen_t        addrLen       = 0;
     struct sockaddr *remoteAddress = NULL;
@@ -115,12 +115,15 @@ static int acceptConnection(Host *localhost, Host *remotehost)
                  remoteAddress, 
                  &addrLen));
     if (sockfd < 0) {
-        return -1;
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            return RECV_TRYAGAIN;
+        }
+        return RECV_ERROR;
     }
     err =
     setSocketNonBlock(sockfd);
     if (err != 0) {
-        return -1;
+        return RECV_ERROR;
     }
     setSocket        (remotehost, sockfd);
     setCommunicating (remotehost);
@@ -179,10 +182,11 @@ int listenForTCP(Host *localhost,
     while(isCommunicating(localhost)) 
     {
         remotehost = createHost("", 0000);
-        er =
-        acceptConnection (localhost, remotehost);
-        if (er < 0) {
-            perror("\nError: TLS Accept failed.\n");
+        while (er == RECV_TRYAGAIN) {
+            er =
+            tryAcceptConnection (localhost, remotehost);
+        }
+        if (er == RECV_ERROR) {
             destroyHost(&remotehost);
             continue;
         }
