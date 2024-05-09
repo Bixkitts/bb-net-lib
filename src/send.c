@@ -187,10 +187,10 @@ int multicastTCP(const char *data, const ssize_t datasize, int cacheIndex)
                 || currentStatus == SEND_TRYAGAIN) {
                 currentStatus =
                 sendDataTCP_NB(data, datasize, remotehost);
-                tryAgain = currentStatus < datasize 
-                           && currentStatus > 0 
-                           || currentStatus == SEND_TRYAGAIN
-                           && tryAgain == 0;
+                tryAgain = (currentStatus < datasize 
+                           && currentStatus > 0
+                           && tryAgain == 0)
+                           || currentStatus == SEND_TRYAGAIN;
             }
         }
     }
