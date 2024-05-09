@@ -36,7 +36,7 @@ typedef struct Host
 
 BBNETAPI extern Host        *createHost            (const char *ip, 
                                                     const uint16_t port);
-extern          void         destroyHost           (Host **host);
+extern void                  destroyHost           (Host **host);
 BBNETAPI extern const char  *getIP                 (Host* host);       // Returns a string representation of the IP address in the client
 BBNETAPI extern uint16_t     getPort               (Host* host);
 extern void                  callHostPacketHandler (char* data, 
@@ -67,6 +67,7 @@ extern const int             getCacheOccupancy     (int cacheIndex);
 extern Host                 *getHostFromCache      (int cacheIndex,
                                                     int hostIndex);
 extern int                   getHostID             (Host *host);
+extern bool                  isCached              (Host* host);
 
 // Checking or setting an interface for listening
 extern void                  setCommunicating      (Host* host);        // Sets the bListen boolean

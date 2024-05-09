@@ -104,15 +104,22 @@ static int acceptConnection(Host *localhost, Host *remotehost)
     socklen_t        addrLen       = 0;
     struct sockaddr *remoteAddress = NULL;
     socketfd         sockfd        = 0;
+    int              err           = 0;
     // Need to cast the type because that's
     // just how sockets work
     remoteAddress = ( struct sockaddr *)&remotehost->address;
     addrLen       = sizeof(remotehost->address);
 
-    sockfd = createSocket(accept(getSocket(localhost), 
-                                 remoteAddress, 
-                                 &addrLen));
+    sockfd = 
+    createSocket(accept(getSocket(localhost), 
+                 remoteAddress, 
+                 &addrLen));
     if (sockfd < 0) {
+        return -1;
+    }
+    err =
+    setSocketNonBlock(sockfd);
+    if (err != 0) {
         return -1;
     }
     setSocket        (remotehost, sockfd);
@@ -238,11 +245,16 @@ void receiveTCPpackets(packetReceptionArgs *args)
     while(isCommunicating(args->remotehost)) {
         // This is supposed to block until bytes are received
         numBytes = recv_variants[packetReceiverType](args);
-        if (numBytes > 0) {
-            args->packet_handler(args->buffer, numBytes, args->remotehost); 
-        }
-        else {
+        args->packet_handler(args->buffer, numBytes, args->remotehost); 
+        if (numBytes == 0) {
             fprintf(stderr, "\nConnection shutdown triggered by recv()...");
+            closeConnections(args->remotehost);
+        }
+        if (numBytes == -1) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                continue;
+            }
+            fprintf(stderr, "\nSocket error, closing connection...\n");
             closeConnections(args->remotehost);
         }
     }

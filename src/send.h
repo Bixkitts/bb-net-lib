@@ -3,6 +3,9 @@
 
 #include "clientObject.h"
 
+#define SEND_TRYAGAIN -2
+#define SEND_ERROR    -1
+
 typedef struct {
     Host       *remotehost;
     const char *buffer;

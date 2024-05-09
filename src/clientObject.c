@@ -66,6 +66,10 @@ void setHostCustomAttr(Host* host, void* ptr)
 {
     host->customAttribute = ptr;
 }
+bool isCached(Host* host)
+{
+    return host->isCached;
+}
 void cacheHost(Host* host, int cacheIndex)
 {
     pthread_mutex_lock   (&cacheLock[cacheIndex]);

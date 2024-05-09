@@ -65,21 +65,31 @@ int sendDataTCP(const char *data, const size_t datasize, Host *remotehost)
 #ifdef DEBUG
     fprintf(stderr, "\nSending TCP packet...");
 #endif
-    int               lockIndex = getHostID(remotehost) % SEND_LOCK_COUNT;
+    int               lockIndex      = getHostID(remotehost) % SEND_LOCK_COUNT;
+    ssize_t           totalBytesSent = 0;
+    ssize_t           status         = 0;
+    PacketSendingArgs sendArgs       = {remotehost, data, datasize};
     pthread_mutex_lock   (&sendLocks[lockIndex]);
-    PacketSendingArgs sendArgs  = {remotehost, data, datasize};
-    // A switch to send packets in different ways
-    ssize_t           status    = send_variants[packetSenderType](&sendArgs);
+    while (totalBytesSent < datasize) {
+        // A switch to send packets in different ways
+        status = send_variants[packetSenderType](&sendArgs);
 
-    if (status == -1) {
-        perror("\nFailed to send TCP message");
-        closeConnections     (remotehost);
-        pthread_mutex_unlock (&sendLocks[lockIndex]);
-        return ERROR;
-    }
-    if (status == 0) {
-        fprintf          (stderr, "\nSocket is closed, couldn't send data");
-        closeConnections (remotehost);
+        if (status == -1) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                continue;
+            }
+            perror("\nFailed to send TCP message");
+            closeConnections     (remotehost);
+            pthread_mutex_unlock (&sendLocks[lockIndex]);
+            return ERROR;
+        }
+        if (status == 0) {
+            fprintf          (stderr, "\nSocket is closed, couldn't send data");
+            closeConnections (remotehost);
+            pthread_mutex_unlock   (&sendLocks[lockIndex]);
+            return SUCCESS;
+        }
+        totalBytesSent += status;
     }
     pthread_mutex_unlock   (&sendLocks[lockIndex]);
     return SUCCESS;
@@ -97,7 +107,7 @@ int sendDataTCPandRecv(const char *data,
     recvArgs = (packetReceptionArgs*)calloc(1, sizeof(packetReceptionArgs));
     if (recvArgs == NULL) {
         closeConnections(remotehost);
-        return ERROR;
+        return SEND_ERROR;
     }
 
     // Remotehost pointer is now owned by new thread
@@ -108,45 +118,50 @@ int sendDataTCPandRecv(const char *data,
     recvArgs->buffer         = (char*)calloc(PACKET_BUFFER_SIZE*2, sizeof(char));
     if (recvArgs->buffer == NULL) {
         free (recvArgs);
-        return ERROR;
+        return SEND_ERROR;
     }
         
     receiveTCPpackets (recvArgs);
     return SUCCESS;
 }
 
-int NB_sendDataTCP    (const char *data, 
-                       const ssize_t datasize, 
-                       Host *remotehost)
+/*
+ * Returns the amount of bytes
+ * sent, or -1 for an error OR -2
+ * Call this function until it errors
+ * or sends datasize bytes
+ */
+static ssize_t sendDataTCP_NB(const char *data, 
+                              const ssize_t datasize, 
+                              Host *remotehost)
 {
 #ifdef DEBUG
     fprintf(stderr, "\nSending TCP packet...");
 #endif
-    int lockIndex = getHostID(remotehost) % SEND_LOCK_COUNT;
+    int               lockIndex      = getHostID(remotehost) % SEND_LOCK_COUNT;
+    ssize_t           status         = 0;
+    PacketSendingArgs sendArgs       = {remotehost, data, datasize};
     pthread_mutex_lock   (&sendLocks[lockIndex]);
+        // A switch to send packets in different ways
+    status = send_variants[packetSenderType](&sendArgs);
 
-    setSocketNonBlock(getSocket(remotehost));
-    int status = send(getSocket(remotehost), data, datasize, 0);
-
-    if (status < 0) {
+    if (status == -1) {
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
-            remotehost->isWaiting = 1;
-            pthread_mutex_unlock (&sendLocks[lockIndex]);
-            return SUCCESS;
+            return SEND_TRYAGAIN;
         }
         perror("\nFailed to send TCP message");
         closeConnections     (remotehost);
-        remotehost->isWaiting = 0;
         pthread_mutex_unlock (&sendLocks[lockIndex]);
-        return ERROR;
+        return SEND_ERROR;
     }
     if (status == 0) {
         fprintf          (stderr, "\nSocket is closed, couldn't send data");
-        remotehost->isWaiting = 0;
         closeConnections (remotehost);
+        pthread_mutex_unlock   (&sendLocks[lockIndex]);
+        return SUCCESS;
     }
     pthread_mutex_unlock   (&sendLocks[lockIndex]);
-    return SUCCESS;
+    return status;
 }
 
 int multicastTCP(const char *data, const ssize_t datasize, int cacheIndex)
@@ -154,14 +169,30 @@ int multicastTCP(const char *data, const ssize_t datasize, int cacheIndex)
 #ifdef DEBUG
     fprintf(stderr, "\nMulticasting to cache number %d...", cacheIndex);
 #endif
-    Host *remotehost = NULL;
-    for (int i = 0; i < getCacheOccupancy(cacheIndex); i++) {
-        // TODO: currently this blocks between sends
-        // to each client. Redo this with 
-        // non-blocking sockets.
-        // Make a non-blockingSendTCP?
-        remotehost = getHostFromCache(cacheIndex, i);
-        sendDataTCP(data, datasize, remotehost);
+    Host      *remotehost  = NULL;
+    const int  occ         = getCacheOccupancy(cacheIndex);
+    bool       tryAgain    = 1;
+    ssize_t    currentStatus = 0;
+    ssize_t    statuses[MAX_HOSTS_PER_CACHE] = { 0 };
+
+    for (int i = 0; i < MAX_HOSTS_PER_CACHE; i++) {
+        statuses[i] = SEND_TRYAGAIN;
+    }
+    while (tryAgain == true) {
+        tryAgain = false;
+        for (int i = 0; i < occ; i++) {
+            remotehost    = getHostFromCache(cacheIndex, i);
+            currentStatus = statuses[i];
+            if ((currentStatus < datasize && currentStatus > 0)
+                || currentStatus == SEND_TRYAGAIN) {
+                currentStatus =
+                sendDataTCP_NB(data, datasize, remotehost);
+                tryAgain = currentStatus < datasize 
+                           && currentStatus > 0 
+                           || currentStatus == SEND_TRYAGAIN
+                           && tryAgain == 0;
+            }
+        }
     }
     return SUCCESS;
 }
