@@ -250,12 +250,14 @@ void receiveTCPpackets(packetReceptionArgs *args)
     while(isCommunicating(args->remotehost)) {
         // This is supposed to block until bytes are received
         numBytes = recv_variants[packetReceiverType](args);
-        args->packet_handler(args->buffer, numBytes, args->remotehost); 
-        if (numBytes == 0) {
-            fprintf(stderr, "\nConnection shutdown triggered by recv()...");
-            closeConnections(args->remotehost);
+        if (numBytes >= 0) {
+            args->packet_handler(args->buffer, numBytes, args->remotehost); 
+            if (numBytes == 0) {
+                fprintf(stderr, "\nConnection shutdown triggered by recv()...");
+                closeConnections(args->remotehost);
+            }
         }
-        if (numBytes == -1) {
+        else {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
                 continue;
             }
