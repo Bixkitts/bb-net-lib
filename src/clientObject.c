@@ -156,7 +156,7 @@ int attemptTLSHandshake(Host* host, SSL_CTX *sslContext)
     int ssl_accept_result = 0;
 
     while (ssl_accept_result <=0) {
-        int ssl_accept_result = SSL_accept(host->ssl);
+        ssl_accept_result = SSL_accept(host->ssl);
         if (ssl_accept_result <= 0) {
             int ssl_error = SSL_get_error(host->ssl, ssl_accept_result);
             if (ssl_error == SSL_ERROR_WANT_READ || ssl_error == SSL_ERROR_WANT_WRITE) {
