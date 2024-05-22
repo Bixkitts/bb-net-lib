@@ -21,6 +21,7 @@ PacketSenderType packetSenderType = PACKET_SENDER_TCP;
 typedef ssize_t (*PacketSender)(PacketSendingArgs*);
 static inline ssize_t send_TCP_unencrypted (PacketSendingArgs *args);
 static inline ssize_t send_TCP_encrypted   (PacketSendingArgs *args);
+static int            waitForReady         (int sockfd);
 static PacketSender send_variants[PACKET_SENDER_COUNT] = 
 { 
             send_TCP_unencrypted,
@@ -60,6 +61,23 @@ static inline ssize_t send_TCP_encrypted (PacketSendingArgs *args)
 {
     return SSL_write(getHostSSL(args->remotehost), args->buffer, args->bytesToProcess);
 }
+static int waitForReady(int sockfd)
+{
+    fd_set writefds;
+    FD_ZERO(&writefds);
+    FD_SET(sockfd, &writefds);
+
+    int selectStatus = select(sockfd + 1,
+                              NULL,
+                              &writefds,
+                              NULL,
+                              NULL);
+    if (selectStatus < 0) {
+        perror("Select error");
+        return -1;
+    }
+    return selectStatus > 0;
+}
 int sendDataTCP(const char *data, const size_t datasize, Host *remotehost)
 {
 #ifdef DEBUG
@@ -69,16 +87,23 @@ int sendDataTCP(const char *data, const size_t datasize, Host *remotehost)
     ssize_t           totalBytesSent = 0;
     ssize_t           status         = 0;
     PacketSendingArgs sendArgs       = {remotehost, data, datasize};
-    pthread_mutex_lock   (&sendLocks[lockIndex]);
+    pthread_mutex_lock(&sendLocks[lockIndex]);
     while (totalBytesSent < datasize) {
         // A switch to send packets in different ways
         status = send_variants[packetSenderType](&sendArgs);
 
         if (status == -1) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                if (waitForReady(getSocket(remotehost)) < 0) {
+                    perror              ("\nSelect error");
+                    closeConnections    (remotehost);
+                    pthread_mutex_unlock(&sendLocks[lockIndex]);
+                    return ERROR;
+                }
                 continue;
             }
-            perror("\nFailed to send TCP message");
+
+            perror               ("\nFailed to send TCP message");
             closeConnections     (remotehost);
             pthread_mutex_unlock (&sendLocks[lockIndex]);
             return ERROR;
@@ -86,12 +111,12 @@ int sendDataTCP(const char *data, const size_t datasize, Host *remotehost)
         if (status == 0) {
             fprintf          (stderr, "\nSocket is closed, couldn't send data");
             closeConnections (remotehost);
-            pthread_mutex_unlock   (&sendLocks[lockIndex]);
+            pthread_mutex_unlock(&sendLocks[lockIndex]);
             return SUCCESS;
         }
         totalBytesSent += status;
     }
-    pthread_mutex_unlock   (&sendLocks[lockIndex]);
+    pthread_mutex_unlock(&sendLocks[lockIndex]);
     return SUCCESS;
 }
 

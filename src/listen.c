@@ -181,6 +181,10 @@ int listenForTCP(Host *localhost,
     while(isCommunicating(localhost)) 
     {
         remotehost = createHost("", 0000);
+        if (remotehost == NULL) {
+            fprintf(stderr, "\nFatal error.\n");
+            goto early_exit;
+        }
         er = RECV_TRYAGAIN;
         while (er == RECV_TRYAGAIN) {
             er =
@@ -207,7 +211,7 @@ int listenForTCP(Host *localhost,
         receptionArgs->localhost      = localhost;
         receptionArgs->packet_handler = packet_handler;
         receptionArgs->bytesToProcess = 0;
-        receptionArgs->buffer         = (char*)calloc(PACKET_BUFFER_SIZE*5, sizeof(char));
+        receptionArgs->buffer         = (char*)calloc(PACKET_BUFFER_SIZE, sizeof(char));
         if (receptionArgs->buffer == NULL) {
             destroyHost (&remotehost);
             free        (receptionArgs);
