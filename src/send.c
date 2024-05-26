@@ -199,7 +199,6 @@ int multicastTCP(const char *data, const ssize_t datasize, int cacheIndex)
     fprintf(stderr, "\nMulticasting to cache number %d...", cacheIndex);
 #endif
     Host      *remotehost  = NULL;
-    const int  occ         = getCacheOccupancy(cacheIndex);
     bool       tryAgain    = 1;
     ssize_t    currentStatus = 0;
     ssize_t    statuses[MAX_HOSTS_PER_CACHE] = { 0 };
@@ -209,8 +208,11 @@ int multicastTCP(const char *data, const ssize_t datasize, int cacheIndex)
     }
     while (tryAgain == true) {
         tryAgain = false;
-        for (int i = 0; i < occ; i++) {
+        for (int i = 0; i < MAX_HOSTS_PER_CACHE; i++) {
             remotehost    = getHostFromCache(cacheIndex, i);
+            if (remotehost == NULL) {
+                continue;
+            }
             currentStatus = statuses[i];
             if ((currentStatus < datasize && currentStatus > 0)
                 || currentStatus == SEND_TRYAGAIN) {
