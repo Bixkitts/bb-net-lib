@@ -22,7 +22,7 @@ static Host* hostCache     [MAX_HOST_CACHES][MAX_HOSTS_PER_CACHE] = {0};
 static atomic_int hostIDCounter = ATOMIC_VAR_INIT(0);
 
 static int  getFreeCacheSpot       (int cacheIndex);
-static void deleteHostAtCacheIndex (int cacheIndex, int hostIndex);
+static void removeHostAtCacheIndex (int cacheIndex, int hostIndex);
 
 Host* createHost(const char *ip, const uint16_t port)
 {
@@ -72,12 +72,11 @@ static int getFreeCacheSpot(int cacheIndex)
     }
     return -1;
 }
-static void deleteHostAtCacheIndex(int cacheIndex, int hostIndex)
+static void removeHostAtCacheIndex(int cacheIndex, int hostIndex)
 {
     Host *host = hostCache[cacheIndex][hostIndex];
     if (host != NULL) {
         host->isCached = 0;
-        destroyHost(&host);
         hostCache[cacheIndex][hostIndex] = NULL;
     }
 }
@@ -105,7 +104,7 @@ void uncacheHost(Host* host, int cacheIndex)
     pthread_mutex_lock   (&cacheLock[cacheIndex]);
     for (int i = 0; i < MAX_HOSTS_PER_CACHE; i++) {
         if (host == getHostFromCache(cacheIndex, i)) {
-            deleteHostAtCacheIndex(cacheIndex, i);
+            removeHostAtCacheIndex(cacheIndex, i);
             break;
         }
     }
@@ -119,7 +118,7 @@ void clearHostCache(int cacheIndex)
         goto unlock;
     }
     for (int i = 0; i < MAX_HOSTS_PER_CACHE; i++) {
-        deleteHostAtCacheIndex(cacheIndex, i);
+        removeHostAtCacheIndex(cacheIndex, i);
     }
 unlock:
     pthread_mutex_unlock (&cacheLock[cacheIndex]);
