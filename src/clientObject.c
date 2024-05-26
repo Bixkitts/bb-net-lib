@@ -15,15 +15,14 @@
 #include "clientObject.h"
 #include "encryption.h"
 
-static pthread_mutex_t copyLock  = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t cacheLock[MAX_HOST_CACHES] = {PTHREAD_MUTEX_INITIALIZER};
 
 static Host* hostCache     [MAX_HOST_CACHES][MAX_HOSTS_PER_CACHE] = {0};
-static int   cacheOccupancy[MAX_HOST_CACHES]                      = {0};
 
 static atomic_int hostIDCounter = ATOMIC_VAR_INIT(0);
 
-static int getFreeCacheSpot(int cacheIndex);
+static int  getFreeCacheSpot       (int cacheIndex);
+static void deleteHostAtCacheIndex (int cacheIndex, int hostIndex);
 
 Host* createHost(const char *ip, const uint16_t port)
 {
@@ -128,10 +127,6 @@ unlock:
 Host *getHostFromCache(int cacheIndex, int hostIndex)
 {
     return hostCache[cacheIndex][hostIndex];
-}
-const int getCacheOccupancy(int cacheIndex)
-{
-    return cacheOccupancy[cacheIndex];
 }
 const char* getIP(Host* host)
 {
