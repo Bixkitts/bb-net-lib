@@ -23,6 +23,8 @@ static int   cacheOccupancy[MAX_HOST_CACHES]                      = {0};
 
 static atomic_int hostIDCounter = ATOMIC_VAR_INIT(0);
 
+static int getFreeCacheSpot(int cacheIndex);
+
 Host* createHost(const char *ip, const uint16_t port)
 {
     Host* host = NULL;
@@ -33,7 +35,7 @@ Host* createHost(const char *ip, const uint16_t port)
         return NULL;
     }
     //filling in the data of the host's ip.
-    strcpy((char*)host->addressStr, ip);
+    strcpy(host->addressStr, ip);
     host->id                 = atomic_fetch_add(&hostIDCounter, 1);
     host->address.sin_family = AF_INET;
     host->address.sin_port   = htons(port);
@@ -42,19 +44,11 @@ Host* createHost(const char *ip, const uint16_t port)
     return host;
 }
 
-void fastCopyHost(Host* dstHost, Host* srcHost)
-{
-    memcpy(dstHost, srcHost, sizeof(Host));
-}
 void copyHost(Host* dstHost, Host* srcHost)
 {
-    // Multiple threads could be caching hosts
-    // to the same memory, this should prevent race conditions.
-    pthread_mutex_lock   (&copyLock);
-    memcpy               (dstHost, 
-                          srcHost, 
-                          sizeof(Host));
-    pthread_mutex_unlock (&copyLock);
+    memcpy (dstHost, 
+            srcHost, 
+            sizeof(Host));
 }
 
 void *getHostCustomAttr(Host* host)
@@ -70,22 +64,52 @@ bool isCached(Host* host)
 {
     return host->isCached;
 }
+static int getFreeCacheSpot(int cacheIndex)
+{
+    for (int i = 0; i < MAX_HOSTS_PER_CACHE; i++) {
+        if (hostCache[cacheIndex][i] == NULL) {
+            return i;
+        }
+    }
+    return -1;
+}
+static void deleteHostAtCacheIndex(int cacheIndex, int hostIndex)
+{
+    Host *host = hostCache[cacheIndex][hostIndex];
+    if (host != NULL) {
+        host->isCached = 0;
+        destroyHost(&host);
+        hostCache[cacheIndex][hostIndex] = NULL;
+    }
+}
 void cacheHost(Host* host, int cacheIndex)
 {
     pthread_mutex_lock   (&cacheLock[cacheIndex]);
+
     if (cacheIndex >= MAX_HOST_CACHES) {
         fprintf(stderr, "\n%s", errStrings[STR_ERROR_HOST_CACHE_INDEX]);
         goto unlock;
     }
-    if (cacheOccupancy[cacheIndex] < MAX_HOSTS_PER_CACHE) {
-        hostCache[cacheIndex][cacheOccupancy[cacheIndex]] = host;
-        cacheOccupancy[cacheIndex]++;
+    int spot = getFreeCacheSpot(cacheIndex);
+    if (spot != -1) {
+        hostCache[cacheIndex][spot] = host;
         host->isCached = 1;
     }
     else {
         fprintf(stderr, "\nHost cache full, can't add host %s", getIP(host));
     }
 unlock:
+    pthread_mutex_unlock (&cacheLock[cacheIndex]);
+}
+void uncacheHost(Host* host, int cacheIndex)
+{
+    pthread_mutex_lock   (&cacheLock[cacheIndex]);
+    for (int i = 0; i < MAX_HOSTS_PER_CACHE; i++) {
+        if (host == getHostFromCache(cacheIndex, i)) {
+            deleteHostAtCacheIndex(cacheIndex, i);
+            break;
+        }
+    }
     pthread_mutex_unlock (&cacheLock[cacheIndex]);
 }
 void clearHostCache(int cacheIndex)
@@ -95,12 +119,9 @@ void clearHostCache(int cacheIndex)
         fprintf(stderr, "\n%s", errStrings[STR_ERROR_HOST_CACHE_INDEX]);
         goto unlock;
     }
-    for (int i = 0; i < cacheOccupancy[cacheIndex]; i++) {
-       Host* hostToDelete = getHostFromCache(cacheIndex, i);
-       hostToDelete->isCached = 0;
-       destroyHost(&hostToDelete);
+    for (int i = 0; i < MAX_HOSTS_PER_CACHE; i++) {
+        deleteHostAtCacheIndex(cacheIndex, i);
     }
-    cacheOccupancy[cacheIndex] = 0;
 unlock:
     pthread_mutex_unlock (&cacheLock[cacheIndex]);
 }

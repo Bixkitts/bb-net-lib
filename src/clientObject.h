@@ -17,7 +17,7 @@
 
 typedef struct Host 
 {
-    const char*        addressStr[INET_ADDRSTRLEN];
+    char               addressStr[INET_ADDRSTRLEN];
     struct sockaddr_in address;         // The socket it contains (IP and port)
     SSL               *ssl;             // Not NULL if we're connected over SSL
     void              *customAttribute; // library user can store whatever in here
@@ -42,10 +42,6 @@ BBNETAPI extern uint16_t     getPort               (Host* host);
 extern void                  callHostPacketHandler (char* data, 
                                                     uint16_t size, 
                                                     Host* host);
-// Not thread safe
-extern void                  fastCopyHost          (Host* dstHost, 
-                                                    Host* srcHost);
-// Thread safe copy
 BBNETAPI extern void         copyHost              (Host* dstHost, 
                                                     Host* srcHost);
 
