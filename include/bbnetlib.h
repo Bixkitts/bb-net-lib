@@ -52,7 +52,7 @@ int  multicastTCP   (const char *data,
                      int cacheIndex);
 void cacheHost      (Host host, 
                      int cacheIndex);
-void uncacheHos     (Host host, 
+void uncacheHost    (Host host, 
                      int cacheIndex);
 void clearHostCache (int cacheIndex);
 
