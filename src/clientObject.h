@@ -58,6 +58,8 @@ extern SSL                  *getHostSSL            (const Host *restrict host);
 // Host Caching functions
 BBNETAPI extern void         cacheHost             (Host* host, 
                                                     int cacheIndex);
+BBNETAPI extern void         uncacheHost           (Host* host, 
+                                                    int cacheIndex);
 BBNETAPI extern void         clearHostCache        (int cacheIndex);
 extern const int             getCacheOccupancy     (int cacheIndex);
 extern Host                 *getHostFromCache      (int cacheIndex,

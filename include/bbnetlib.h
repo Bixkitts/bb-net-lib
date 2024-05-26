@@ -52,6 +52,8 @@ int  multicastTCP   (const char *data,
                      int cacheIndex);
 void cacheHost      (Host host, 
                      int cacheIndex);
+void uncacheHos     (Host host, 
+                     int cacheIndex);
 void clearHostCache (int cacheIndex);
 
 // IP string is always length 16
