@@ -152,11 +152,11 @@ Request features by opening an issue.
 Yes, just enableEncryption() for TLS and have a certificate and key for it next to the binary.
 
 ## Planned Features
-- Websockets functions
-- IPv6 support
-- Multiplatform support (Windows)
-- HTTP helper functions
-- Maybe JSON parsing
+- Nothing really right now, I'm just using this to power my own webservers
+  so I'll adjust it to fit those needs
 
 ## Known Issues, Beware!
-Multicasts are blocking
+I haven't touched UDP code in months,
+it probably doesn't work but I'm actively using TCP
+and TLS in another project so that should work fine
+as described here.
