@@ -9,7 +9,7 @@
 __BEGIN_DECLS
 
 typedef int    socketfd;
-typedef struct Host_Internal *Host;
+typedef struct Host *Host;
 
 // All configuration functions.
 // Call these before any of the others!
