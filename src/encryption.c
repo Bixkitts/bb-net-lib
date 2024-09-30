@@ -1,7 +1,8 @@
 // Tested with OpenSSL version 3.2.1
 #include "encryption.h"
 
-SSL_CTX *createSSLContext() {
+SSL_CTX *create_ssl_context()
+{
     const SSL_METHOD *method = NULL;
     SSL_CTX          *ctx    = NULL;
 
@@ -19,7 +20,8 @@ SSL_CTX *createSSLContext() {
     return ctx;
 }
 
-void configureSSLContext(SSL_CTX *ctx) {
+void configure_ssl_context(SSL_CTX *ctx)
+{
     SSL_CTX_set_ecdh_auto(ctx, 1);
     // Load certificate and private key
     if (SSL_CTX_use_certificate_file(ctx, "server.crt", SSL_FILETYPE_PEM) <= 0) {

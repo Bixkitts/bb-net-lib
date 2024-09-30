@@ -5,7 +5,7 @@
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 
-SSL_CTX *createSSLContext    ();
-void     configureSSLContext (SSL_CTX *ctx);
+SSL_CTX *create_ssl_context    ();
+void     configure_ssl_context (SSL_CTX *ctx);
 
 #endif

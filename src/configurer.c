@@ -2,8 +2,8 @@
 #include "listen.h"
 #include "send.h"
 
-void enableTLS()
+void enable_tls()
 {
-    setTCP_receiveType(PACKET_RECEIVER_TLS); 
-    setTCP_sendType   (PACKET_SENDER_TLS);
+    set_tcp_receive_type(PACKET_RECEIVER_TLS); 
+    set_tcp_send_type   (PACKET_SENDER_TLS);
 }

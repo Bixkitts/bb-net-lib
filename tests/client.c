@@ -14,18 +14,18 @@ int main(void)
 {
     printf("\nWelcome to the test client!");
     printf("\n-------------------------------\n");
-    struct host* remotehost = createHost("127.0.0.1", 80);
-    connectToTCP (remotehost);
-    sendDataTCP  ("Opening Connection!", 20, remotehost);
+    struct host* remotehost = create_host("127.0.0.1", 80);
+    connect_to_tcp (remotehost);
+    send_data_tcp("Opening Connection!", 20, remotehost);
     for (int i = 0; i < 5; i++) {
-        sendDataTCP  ("AAAAA", 6, remotehost);
+        send_data_tcp  ("AAAAA", 6, remotehost);
         sleep_ms(10);
-        sendDataTCP  ("BBBBB", 6, remotehost);
+        send_data_tcp  ("BBBBB", 6, remotehost);
         sleep_ms(10);
     }
-    sendDataTCP  ("Huh?", 5, remotehost);
+    send_data_tcp  ("Huh?", 5, remotehost);
     sleep_ms(50);
-    sendDataTCP  ("end", 4, remotehost);
+    send_data_tcp  ("end", 4, remotehost);
     return 0;
 
 }

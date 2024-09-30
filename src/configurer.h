@@ -3,7 +3,7 @@
 
 #include "defines.h"
 
-BBNETAPI void enableTLS();
+BBNETAPI void enable_tls();
 
 
 #endif

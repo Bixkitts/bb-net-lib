@@ -15,27 +15,27 @@
 #include "clientObject.h"
 #include "encryption.h"
 
-static pthread_mutex_t cacheLock[MAX_HOST_CACHES] = {PTHREAD_MUTEX_INITIALIZER};
+static pthread_mutex_t cache_lock[MAX_HOST_CACHES] = {PTHREAD_MUTEX_INITIALIZER};
 
-static struct host* hostCache     [MAX_HOST_CACHES][MAX_HOSTS_PER_CACHE] = {0};
+static struct host* host_cache     [MAX_HOST_CACHES][MAX_HOSTS_PER_CACHE] = {0};
 
-static atomic_int hostIDCounter = ATOMIC_VAR_INIT(0);
+static atomic_int host_id_counter = ATOMIC_VAR_INIT(0);
 
-static int  getFreeCacheSpot       (int cacheIndex);
-static void removeHostAtCacheIndex (int cacheIndex, int hostIndex);
+static int  get_free_cache_spot       (int cacheIndex);
+static void remove_host_at_cache_index (int cacheIndex, int hostIndex);
 
-struct host* createHost(const char *ip, const uint16_t port)
+struct host* create_host(const char *ip, const uint16_t port)
 {
     struct host* host = NULL;
 
     host = (struct host*)calloc(1, sizeof(struct host));
     if (host == NULL) {
-        perror(errStrings[STR_ERROR_MALLOC]);
+        perror(err_strings[STR_ERROR_MALLOC]);
         return NULL;
     }
     //filling in the data of the host's ip.
     strcpy(host->addressStr, ip);
-    host->id                 = atomic_fetch_add(&hostIDCounter, 1);
+    host->id                 = atomic_fetch_add(&host_id_counter, 1);
     host->address.sin_family = AF_INET;
     host->address.sin_port   = htons(port);
 
@@ -43,103 +43,103 @@ struct host* createHost(const char *ip, const uint16_t port)
     return host;
 }
 
-void copyHost(struct host* dstHost, struct host* srcHost)
+void copy_host(struct host* dstHost, struct host* srcHost)
 {
     memcpy (dstHost, 
             srcHost, 
             sizeof(struct host));
 }
 
-void *getHostCustomAttr(struct host* host)
+void *get_host_custom_attr(struct host* host)
 {
     return host->customAttribute;
 }
 
-void setHostCustomAttr(struct host* host, void* ptr)
+void set_host_custom_attr(struct host* host, void* ptr)
 {
     host->customAttribute = ptr;
 }
-bool isCached(struct host* host)
+bool is_cached(struct host* host)
 {
     return host->isCached;
 }
-static int getFreeCacheSpot(int cacheIndex)
+static int get_free_cache_spot(int cacheIndex)
 {
     for (int i = 0; i < MAX_HOSTS_PER_CACHE; i++) {
-        if (hostCache[cacheIndex][i] == NULL) {
+        if (host_cache[cacheIndex][i] == NULL) {
             return i;
         }
     }
     return -1;
 }
-static void removeHostAtCacheIndex(int cacheIndex, int hostIndex)
+static void remove_host_at_cache_index(int cacheIndex, int hostIndex)
 {
-    struct host *host = hostCache[cacheIndex][hostIndex];
+    struct host *host = host_cache[cacheIndex][hostIndex];
     if (host != NULL) {
         host->isCached = 0;
-        hostCache[cacheIndex][hostIndex] = NULL;
+        host_cache[cacheIndex][hostIndex] = NULL;
     }
 }
-void cacheHost(struct host* host, int cacheIndex)
+void cache_host(struct host* host, int cacheIndex)
 {
-    pthread_mutex_lock   (&cacheLock[cacheIndex]);
+    pthread_mutex_lock   (&cache_lock[cacheIndex]);
 
     if (cacheIndex >= MAX_HOST_CACHES) {
-        fprintf(stderr, "\n%s", errStrings[STR_ERROR_HOST_CACHE_INDEX]);
+        fprintf(stderr, "\n%s", err_strings[STR_ERROR_HOST_CACHE_INDEX]);
         goto unlock;
     }
-    int spot = getFreeCacheSpot(cacheIndex);
+    int spot = get_free_cache_spot(cacheIndex);
     if (spot != -1) {
-        hostCache[cacheIndex][spot] = host;
+        host_cache[cacheIndex][spot] = host;
         host->isCached = 1;
     }
     else {
-        fprintf(stderr, "\nHost cache full, can't add host %s", getIP(host));
+        fprintf(stderr, "\nHost cache full, can't add host %s", get_ip(host));
     }
 unlock:
-    pthread_mutex_unlock (&cacheLock[cacheIndex]);
+    pthread_mutex_unlock (&cache_lock[cacheIndex]);
 }
-void uncacheHost(struct host* host, int cacheIndex)
+void uncache_host(struct host* host, int cacheIndex)
 {
-    pthread_mutex_lock   (&cacheLock[cacheIndex]);
+    pthread_mutex_lock   (&cache_lock[cacheIndex]);
     for (int i = 0; i < MAX_HOSTS_PER_CACHE; i++) {
-        if (host == getHostFromCache(cacheIndex, i)) {
-            removeHostAtCacheIndex(cacheIndex, i);
+        if (host == get_host_from_cache(cacheIndex, i)) {
+            remove_host_at_cache_index(cacheIndex, i);
             break;
         }
     }
-    pthread_mutex_unlock (&cacheLock[cacheIndex]);
+    pthread_mutex_unlock (&cache_lock[cacheIndex]);
 }
-void clearHostCache(int cacheIndex)
+void clear_host_cache(int cacheIndex)
 {
-    pthread_mutex_lock   (&cacheLock[cacheIndex]);
+    pthread_mutex_lock   (&cache_lock[cacheIndex]);
     if (cacheIndex >= MAX_HOST_CACHES) {
-        fprintf(stderr, "\n%s", errStrings[STR_ERROR_HOST_CACHE_INDEX]);
+        fprintf(stderr, "\n%s", err_strings[STR_ERROR_HOST_CACHE_INDEX]);
         goto unlock;
     }
     for (int i = 0; i < MAX_HOSTS_PER_CACHE; i++) {
-        removeHostAtCacheIndex(cacheIndex, i);
+        remove_host_at_cache_index(cacheIndex, i);
     }
 unlock:
-    pthread_mutex_unlock (&cacheLock[cacheIndex]);
+    pthread_mutex_unlock (&cache_lock[cacheIndex]);
 }
-struct host *getHostFromCache(int cacheIndex, int hostIndex)
+struct host *get_host_from_cache(int cacheIndex, int hostIndex)
 {
-    return hostCache[cacheIndex][hostIndex];
+    return host_cache[cacheIndex][hostIndex];
 }
-const char* getIP(struct host* host)
+const char* get_ip(struct host* host)
 {
     return (const char*)host->addressStr;
 }
-uint16_t getPort(struct host* host)
+uint16_t get_port(struct host* host)
 {
     return ntohs(host->address.sin_port);
 }
-int getHostID(struct host *host)
+int get_host_id(struct host *host)
 {
     return host->id;
 }
-void destroyHost(struct host** host)
+void destroy_host(struct host** host)
 {
     if (*host == NULL) {
         return;
@@ -148,26 +148,26 @@ void destroyHost(struct host** host)
         return;
     }
     if ((*host)->ssl != NULL) {
-        int shutdownResult;
+        int shutdown_result;
         do {
-            shutdownResult = SSL_shutdown((*host)->ssl);
-        } while (shutdownResult == 0);
-        if (shutdownResult < 0) {
+            shutdown_result = SSL_shutdown((*host)->ssl);
+        } while (shutdown_result == 0);
+        if (shutdown_result < 0) {
             // Handle error if necessary
         }
         SSL_free((*host)->ssl);
     }
 
-    closeSocket  (getSocket(*host));
+    close_socket  (get_socket(*host));
 
     free(*host);
     *host = NULL;
 }
 
-int attemptTLSHandshake(struct host* host, SSL_CTX *sslContext)
+int attempt_tls_handshake(struct host* host, SSL_CTX *sslContext)
 {
     host->ssl = SSL_new(sslContext);
-    SSL_set_fd(host->ssl, getSocket(host));
+    SSL_set_fd(host->ssl, get_socket(host));
     int ssl_accept_result = 0;
 
     while (ssl_accept_result <=0) {
@@ -184,32 +184,32 @@ int attemptTLSHandshake(struct host* host, SSL_CTX *sslContext)
     return 0;
 }
 
-void closeConnections(struct host* host)
+void close_connections(struct host* host)
 {
     host->bListen = 0;
 }
 
-void setCommunicating(struct host* host)
+void set_communicating(struct host* host)
 {
     host->bListen = 1;
 }
 
-bool isCommunicating(const struct host* host)
+bool is_communicating(const struct host* host)
 {
     return host->bListen;
 }
 
-void setSocket(struct host *restrict host, socketfd_t sockfd)
+void set_socket(struct host *restrict host, socketfd_t sockfd)
 {
     host->associatedSocket = sockfd;
 }
 
-socketfd_t getSocket(const struct host* host)
+socketfd_t get_socket(const struct host* host)
 {
     return host->associatedSocket;
 }
 
-SSL *getHostSSL(const struct host *restrict host)
+SSL *get_host_ssl(const struct host *restrict host)
 {
     return host->ssl;
 }

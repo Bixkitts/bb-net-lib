@@ -13,106 +13,106 @@
 #include "clientObject.h"
 #include "listen.h"
 #include "defines.h"
-#include "encryption.h"
 #include "socketsNetLib.h"
 #include "threadPool.h"
+#include "encryption.h"
 #include "send.h"
 
-struct thread_pool *TCPthreadPool = NULL;
-struct thread_pool *UDPthreadPool = NULL;
+struct thread_pool *tcp_thread_pool = NULL;
+struct thread_pool *udp_thread_pool = NULL;
 
 // global sslContext TCP... move this?
-static SSL_CTX *sslContext = NULL;
+static SSL_CTX *ssl_context = NULL;
 
-static void sigpipeIgnorer();
+static void sigpipe_ignorer();
 
 // Global switch for what type of TCP recv() we'll be doing
-static enum packet_receiver_type packetReceiverType = PACKET_RECEIVER_TCP;
+static enum packet_receiver_type packet_receiver_type = PACKET_RECEIVER_TCP;
 
-typedef ssize_t (*PacketReceiver)(struct packet_reception_args*);
-static inline ssize_t recv_TCP_unencrypted (struct packet_reception_args *restrict args);
-static inline ssize_t recv_TCP_encrypted   (struct packet_reception_args *restrict args);
-static PacketReceiver recv_variants[PACKET_RECEIVER_COUNT] = 
+typedef ssize_t (*packet_receiver_t)(struct packet_reception_args*);
+static inline ssize_t recv_tcp_unencrypted (struct packet_reception_args *restrict args);
+static inline ssize_t recv_tcp_encrypted   (struct packet_reception_args *restrict args);
+static packet_receiver_t recv_variants[PACKET_RECEIVER_COUNT] = 
 { 
-            recv_TCP_unencrypted,
-            recv_TCP_encrypted
+            recv_tcp_unencrypted,
+            recv_tcp_encrypted
 };
 
-static void destroyPacketReceptionArgs (struct packet_reception_args **args);
+static void destroy_packet_reception_args (struct packet_reception_args **args);
 
-void setTCP_receiveType(enum packet_receiver_type type)
+void set_tcp_receive_type(enum packet_receiver_type type)
 {
-    packetReceiverType = type;
+    packet_receiver_type = type;
 }
 
-int listenForUDP(struct host *localhost, void (*packet_handler)(char*, ssize_t, struct host*))    //Should be called on it's own thread as the while loop is blocking 
+int listen_for_udp(struct host *localhost, void (*packet_handler)(char*, ssize_t, struct host*))    //Should be called on it's own thread as the while loop is blocking 
 {    
-    const socketfd_t sockfd                     = createSocket(SOCK_DEFAULT_UDP);
+    const socketfd_t sockfd                     = create_socket(SOCK_DEFAULT_UDP);
     struct host           remotehost                 = { 0 };
-    ssize_t        numBytes                   = 0;
+    ssize_t        num_bytes                   = 0;
     socklen_t      len                        = 0;
     char           buffer[PACKET_BUFFER_SIZE] = { 0 };
 
-    if (FAILURE(bindSocket(sockfd, 
+    if (FAILURE(bind_socket(sockfd, 
                            localhost)))
     {
         perror("Failed to listen for UDP \n");
         return ERROR;
     }
 
-    setCommunicating(localhost);
-    setCommunicating(&remotehost);
+    set_communicating(localhost);
+    set_communicating(&remotehost);
 
     len = sizeof(localhost->address);
     // Need to cast the pointer to a sockaddr type to satisfy the syscall
-    struct sockaddr* remoteAddress = ( struct sockaddr *)&remotehost.address;
+    struct sockaddr* remote_address = ( struct sockaddr *)&remotehost.address;
 
-    while(isCommunicating(localhost)) {
-        numBytes = recvfrom(sockfd, 
+    while(is_communicating(localhost)) {
+        num_bytes = recvfrom(sockfd, 
                             buffer, 
                             PACKET_BUFFER_SIZE, 
                             MSG_WAITALL, 
-                            remoteAddress, 
+                            remote_address, 
                            &len);
 
-        if (numBytes < PACKET_BUFFER_SIZE) {
-            buffer[numBytes] = '\0';    // Null terminate the received data
+        if (num_bytes < PACKET_BUFFER_SIZE) {
+            buffer[num_bytes] = '\0';    // Null terminate the received data
         }
 
-        if (numBytes == 0) {
+        if (num_bytes == 0) {
             printf("Transmission finished\n");
             break;
         }
         // TODO: this is currently blocking and should run in it's own thread from
         // the pool, but I don't need UDP right now and even if I did it should be _okay_
         // for a small amount of hosts.
-        packet_handler(buffer, numBytes, &remotehost);
+        packet_handler(buffer, num_bytes, &remotehost);
     }
 
-    if (isCommunicating(localhost)) {
-        closeConnections(localhost);
+    if (is_communicating(localhost)) {
+        close_connections(localhost);
     }
-    if (isCommunicating(&remotehost)) {
-        closeConnections(&remotehost);
+    if (is_communicating(&remotehost)) {
+        close_connections(&remotehost);
     }
 
     return SUCCESS;
 }
-static int tryAcceptConnection(struct host *localhost, struct host *remotehost)
+static int try_accept_connection(struct host *localhost, struct host *remotehost)
 {
-    socklen_t        addrLen       = 0;
-    struct sockaddr *remoteAddress = NULL;
+    socklen_t        addr_len       = 0;
+    struct sockaddr *remote_address = NULL;
     socketfd_t         sockfd        = 0;
     int              err           = 0;
     // Need to cast the type because that's
     // just how sockets work
-    remoteAddress = ( struct sockaddr *)&remotehost->address;
-    addrLen       = sizeof(remotehost->address);
+    remote_address = ( struct sockaddr *)&remotehost->address;
+    addr_len       = sizeof(remotehost->address);
 
     sockfd = 
-    createSocket(accept(getSocket(localhost), 
-                 remoteAddress, 
-                 &addrLen));
+    create_socket(accept(get_socket(localhost), 
+                 remote_address, 
+                 &addr_len));
     if (sockfd < 0) {
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
             return RECV_TRYAGAIN;
@@ -120,16 +120,16 @@ static int tryAcceptConnection(struct host *localhost, struct host *remotehost)
         return RECV_ERROR;
     }
     err =
-    setSocketNonBlock(sockfd);
+    set_socket_non_block(sockfd);
     if (err != 0) {
         return RECV_ERROR;
     }
-    setSocket        (remotehost, sockfd);
-    setCommunicating (remotehost);
+    set_socket        (remotehost, sockfd);
+    set_communicating (remotehost);
     return 0;
 }
 
-static void sigpipeIgnorer()
+static void sigpipe_ignorer()
 {
     static sigset_t set;
     sigemptyset (&set);
@@ -145,42 +145,42 @@ static void sigpipeIgnorer()
  * and listen until the localhost
  * is set not to listen any more.
  * */
-int listenForTCP(struct host *localhost, 
+int listen_for_tcp(struct host *localhost, 
                  void (*packet_handler)(char*, ssize_t, struct host*))
 {
 #ifdef DEBUG
     fprintf(stderr, "\nListening for TCP connections...");
 #endif
-    struct packet_reception_args *receptionArgs = NULL;
+    struct packet_reception_args *reception_args = NULL;
     struct host                *remotehost    = NULL;
     int                  er            = 0;
 
-    sigpipeIgnorer();
+    sigpipe_ignorer();
 
-    createThreadPool  (&TCPthreadPool);
-    setSocket         (localhost, createSocket(SOCK_DEFAULT_TCP));
-    setSocketNonBlock (getSocket(localhost));
+    create_thread_pool  (&tcp_thread_pool);
+    set_socket         (localhost, create_socket(SOCK_DEFAULT_TCP));
+    set_socket_non_block (get_socket(localhost));
 
     /* TLS setup */ 
-    if (packetReceiverType == PACKET_RECEIVER_TLS) {
-        sslContext = createSSLContext();
-        configureSSLContext(sslContext);
+    if (packet_receiver_type == PACKET_RECEIVER_TLS) {
+        ssl_context = create_ssl_context();
+        configure_ssl_context(ssl_context);
     }
     /* --------- */
 
-    if (FAILURE(bindSocket(getSocket(localhost), localhost))) {
+    if (FAILURE(bind_socket(get_socket(localhost), localhost))) {
         perror("\nFailed to listen for TCP");
         return ERROR;
     }
-    setCommunicating(localhost);
-    if (FAILURE(listen(getSocket(localhost), SOCK_BACKLOG))) {
+    set_communicating(localhost);
+    if (FAILURE(listen(get_socket(localhost), SOCK_BACKLOG))) {
         printf("\nError: listen() failed with errno %d: %s\n", errno, strerror(errno));
         return ERROR;
     }
 
-    while(isCommunicating(localhost)) 
+    while(is_communicating(localhost)) 
     {
-        remotehost = createHost("", 0000);
+        remotehost = create_host("", 0000);
         if (remotehost == NULL) {
             fprintf(stderr, "\nFatal error.\n");
             goto early_exit;
@@ -188,77 +188,78 @@ int listenForTCP(struct host *localhost,
         er = RECV_TRYAGAIN;
         while (er == RECV_TRYAGAIN) {
             er =
-            tryAcceptConnection (localhost, remotehost);
+            try_accept_connection (localhost, remotehost);
         }
         if (er == RECV_ERROR) {
-            destroyHost(&remotehost);
+            destroy_host(&remotehost);
             continue;
         }
-        if (packetReceiverType == PACKET_RECEIVER_TLS) {
-            if(FAILURE(attemptTLSHandshake (remotehost, sslContext))) {;
+        if (packet_receiver_type == PACKET_RECEIVER_TLS) {
+            if(FAILURE(attempt_tls_handshake (remotehost, ssl_context))) {;
                 perror("\nError: TLS Handshake failed.\n");
-                destroyHost(&remotehost);
+                destroy_host(&remotehost);
                 continue;
             }
         }
 
-        receptionArgs = (struct packet_reception_args*)calloc(1, sizeof(struct packet_reception_args));
-        if (receptionArgs == NULL) {
+        reception_args = (struct packet_reception_args*)calloc(1, sizeof(struct packet_reception_args));
+        if (reception_args == NULL) {
             goto early_exit;
         }
         // Remotehost pointer is now owned by new thread
-        receptionArgs->remotehost     = remotehost;
-        receptionArgs->localhost      = localhost;
-        receptionArgs->packet_handler = packet_handler;
-        receptionArgs->bytesToProcess = 0;
-        receptionArgs->buffer         = (char*)calloc(PACKET_BUFFER_SIZE, sizeof(char));
-        if (receptionArgs->buffer == NULL) {
-            destroyHost (&remotehost);
-            free        (receptionArgs);
+        reception_args->remotehost     = remotehost;
+        reception_args->localhost      = localhost;
+        reception_args->packet_handler = packet_handler;
+        reception_args->bytesToProcess = 0;
+        reception_args->buffer         = (char*)calloc(PACKET_BUFFER_SIZE, sizeof(char));
+        if (reception_args->buffer == NULL) {
+            destroy_host (&remotehost);
+            free        (reception_args);
             goto early_exit;
         }
 
-        addTaskToThreadPool(TCPthreadPool, (void*)receiveTCPpackets, receptionArgs);
+        add_task_to_thread_pool(tcp_thread_pool, (void*)receive_tcp_packets, reception_args);
     }
 early_exit: 
-    destroyThreadPool (&TCPthreadPool);
-    closeSocket       (getSocket(localhost));
-    SSL_CTX_free      (sslContext);
-    destroyHost       (&localhost);
+    destroy_thread_pool (&tcp_thread_pool);
+    close_socket       (get_socket(localhost));
+    SSL_CTX_free      (ssl_context);
+    destroy_host       (&localhost);
     return SUCCESS;
 }
-static inline ssize_t recv_TCP_unencrypted(struct packet_reception_args *restrict args)
+static inline ssize_t recv_tcp_unencrypted(struct packet_reception_args *restrict args)
 {
-    ssize_t numBytes = 0;
-    numBytes = recv(getSocket(args->remotehost), 
+    ssize_t num_bytes = 0;
+    num_bytes = recv(get_socket(args->remotehost), 
                      args->buffer, 
                      PACKET_BUFFER_SIZE, 
                      0);
-    return numBytes;
+    return num_bytes;
 }
-static inline ssize_t recv_TCP_encrypted(struct packet_reception_args *restrict args)
+static inline ssize_t recv_tcp_encrypted(struct packet_reception_args *restrict args)
 {
-    ssize_t numBytes = 0;
-    numBytes = SSL_read(getHostSSL(args->remotehost), 
+    ssize_t num_bytes = 0;
+    num_bytes = SSL_read(get_host_ssl(args->remotehost), 
                         args->buffer, 
                         PACKET_BUFFER_SIZE);
-    return numBytes;
+    return num_bytes;
 }
-void receiveTCPpackets(struct packet_reception_args *args) 
+
+void receive_tcp_packets(struct packet_reception_args *args) 
 {
 #ifdef DEBUG
     fprintf(stderr, "\nReceiving a TCP packet in a thread...");
 #endif
-    ssize_t numBytes = 0;
+    ssize_t num_bytes = 0;
     
-    while(isCommunicating(args->remotehost)) {
+    while(is_communicating(args->remotehost)) {
         // This is supposed to block until bytes are received
-        numBytes = recv_variants[packetReceiverType](args);
-        if (numBytes >= 0) {
-            args->packet_handler(args->buffer, numBytes, args->remotehost); 
-            if (numBytes == 0) {
+        num_bytes = recv_variants[packet_receiver_type](args);
+        if (num_bytes >= 0) {
+            args->packet_handler(args->buffer, num_bytes, args->remotehost); 
+            if (num_bytes == 0) {
                 fprintf(stderr, "\nConnection shutdown triggered by recv()...");
-                closeConnections(args->remotehost);
+                close_connections(args->remotehost);
             }
         }
         else {
@@ -266,25 +267,25 @@ void receiveTCPpackets(struct packet_reception_args *args)
                 continue;
             }
             fprintf(stderr, "\nSocket error, closing connection...\n");
-            closeConnections(args->remotehost);
+            close_connections(args->remotehost);
         }
     }
     // Let the remote host know we're closing connection
-    sendDataTCP                (NULL, 0, args->remotehost);
-    closeSocket                (getSocket(args->remotehost));
-    destroyPacketReceptionArgs (&args);
+    send_data_tcp                (NULL, 0, args->remotehost);
+    close_socket                (get_socket(args->remotehost));
+    destroy_packet_reception_args (&args);
     return;
 }
 
 /*
  * Precondition that args pointer and members not NULL
  */
-static void destroyPacketReceptionArgs(struct packet_reception_args **args)
+static void destroy_packet_reception_args(struct packet_reception_args **args)
 {
     if (*args == NULL) {
         return;
     }
-    destroyHost (&(*args)->remotehost); 
+    destroy_host (&(*args)->remotehost); 
     free        ((*args)->buffer);
     free        (*args);
     *args = NULL;

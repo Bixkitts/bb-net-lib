@@ -2,9 +2,9 @@
 #include <stdlib.h>
 #include "threadPool.h"
 
-static void *executeTask(void *arg);
+static void *execute_task(void *arg);
 
-int createThreadPool(struct thread_pool **pool) 
+int create_thread_pool(struct thread_pool **pool) 
 {
     *pool = (struct thread_pool*)calloc(1, sizeof(struct thread_pool));
     if ((*pool) == NULL) {
@@ -19,13 +19,13 @@ int createThreadPool(struct thread_pool **pool)
     (*pool)->shutdown   = 0;
 
     for (int i = 0; i < BB_MAX_THREADS; i++) {
-        pthread_create(&(*pool)->threads[i], NULL, executeTask, (*pool));
+        pthread_create(&(*pool)->threads[i], NULL, execute_task, (*pool));
     }
     return 0;
 }
 
 // Execute the task
-static void *executeTask(void *arg) 
+static void *execute_task(void *arg) 
 {
     struct thread_pool *pool = (struct thread_pool *)arg;
 
@@ -55,7 +55,7 @@ static void *executeTask(void *arg)
 }
 
 // Add a task to the thread pool
-void addTaskToThreadPool(struct thread_pool *pool, void (*function)(void *), void *argument) 
+void add_task_to_thread_pool(struct thread_pool *pool, void (*function)(void *), void *argument) 
 {
     pthread_mutex_lock  (&pool->lock);
 
@@ -76,7 +76,7 @@ void addTaskToThreadPool(struct thread_pool *pool, void (*function)(void *), voi
 }
 
 // Shutdown the thread pool
-void destroyThreadPool(struct thread_pool **pool) 
+void destroy_thread_pool(struct thread_pool **pool) 
 {
     if ((*pool) == NULL) {
         return;

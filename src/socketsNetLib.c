@@ -10,7 +10,7 @@
 #include "clientObject.h"
 #include "socketsNetLib.h"
 
-socketfd_t createSocket(socketfd_t value)             
+socketfd_t create_socket(socketfd_t value)             
 {
     socketfd_t sockfd = value;
     if (IS_INVALID_FD(socket)) { 
@@ -20,23 +20,23 @@ socketfd_t createSocket(socketfd_t value)
     return sockfd;
 }
 
-void closeSocket(socketfd_t sockfd)
+void close_socket(socketfd_t sockfd)
 {
     close(sockfd);
 }
 
-int bindSocket(socketfd_t sockfd, struct host* localhost)
+int bind_socket(socketfd_t sockfd, struct host* localhost)
 {
-    struct sockaddr* boundAddress = ( struct sockaddr *)&localhost->address;
+    struct sockaddr* bound_address = ( struct sockaddr *)&localhost->address;
     if(FAILURE(bind(sockfd, 
-                    boundAddress, 
+                    bound_address, 
                     sizeof(localhost->address)))) {
         perror("\nFailed to bind socket!");
         return ERROR;
     }
     return SUCCESS;
 }
-int setSocketNonBlock(socketfd_t sockfd)
+int set_socket_non_block(socketfd_t sockfd)
 {    
     int flags = fcntl(sockfd, F_GETFL, 0);
     if (flags == -1) {
@@ -52,7 +52,7 @@ int setSocketNonBlock(socketfd_t sockfd)
  * This only works for blocking sockets,
  * don't use.
  */
-int setSocketTimeout(socketfd_t sockfd, long secs)
+int set_socket_timeout(socketfd_t sockfd, long secs)
 {
     struct timeval timeout = {};
     timeout.tv_sec  = secs;   // 5 seconds

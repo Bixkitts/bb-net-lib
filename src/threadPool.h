@@ -22,11 +22,11 @@ struct thread_pool {
     int             shutdown;
 };
 
-int  createThreadPool    (struct thread_pool **pool);
-void addTaskToThreadPool (struct thread_pool *pool, 
+int  create_thread_pool    (struct thread_pool **pool);
+void add_task_to_thread_pool (struct thread_pool *pool, 
                           void (*function)(void *), 
                           void *argument);
-void destroyThreadPool   (struct thread_pool **pool); 
+void destroy_thread_pool   (struct thread_pool **pool); 
 
 
 #endif

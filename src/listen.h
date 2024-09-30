@@ -8,8 +8,8 @@
 
 #define RECV_ERROR    -1
 #define RECV_TRYAGAIN -2
-extern struct thread_pool *TCPthreadPool;
-extern struct thread_pool *UDPthreadPool;
+extern struct thread_pool *tcp_thread_pool;
+extern struct thread_pool *udp_thread_pool;
 
 struct packet_reception_args {
     struct host       *localhost;
@@ -25,15 +25,15 @@ enum packet_receiver_type {
     PACKET_RECEIVER_COUNT
 };
 
-BBNETAPI int listenForUDP(struct host *localhost, 
+BBNETAPI int listen_for_udp(struct host *localhost, 
                           void (*packet_handler)(char*, ssize_t, struct host*));
 
-BBNETAPI int listenForTCP(struct host *localhost, 
+BBNETAPI int listen_for_tcp(struct host *localhost, 
                           void (*packet_handler)(char*, ssize_t, struct host*));
 
-void setTCP_receiveType  (enum packet_receiver_type);
+void set_tcp_receive_type  (enum packet_receiver_type);
 
-void receiveTCPpackets   (struct packet_reception_args *args);
-void receiveTLSpackets   (struct packet_reception_args *args);
+void receive_tcp_packets   (struct packet_reception_args *args);
+void receive_tls_packets   (struct packet_reception_args *args);
 
 #endif

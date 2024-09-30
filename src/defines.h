@@ -22,6 +22,6 @@ enum err_string_enum {
     STR_ERROR_COUNT
 };
 
-extern const char *const errStrings[];
+extern const char *const err_strings[];
 
 #endif

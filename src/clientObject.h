@@ -34,45 +34,45 @@ struct host
                                         // that's waiting to call send/recv again
 };
 
-BBNETAPI extern struct host        *createHost            (const char *ip, 
+BBNETAPI extern struct host        *create_host            (const char *ip, 
                                                     const uint16_t port);
-extern void                  destroyHost           (struct host **host);
-BBNETAPI extern const char  *getIP                 (struct host* host);       // Returns a string representation of the IP address in the client
-BBNETAPI extern uint16_t     getPort               (struct host* host);
-extern void                  callHostPacketHandler (char* data, 
+extern void                  destroy_host           (struct host **host);
+BBNETAPI extern const char  *get_ip                 (struct host* host);       // Returns a string representation of the IP address in the client
+BBNETAPI extern uint16_t     get_port               (struct host* host);
+extern void                  call_host_packet_handler (char* data, 
                                                     uint16_t size, 
                                                     struct host* host);
-BBNETAPI extern void         copyHost              (struct host* dstHost, 
+BBNETAPI extern void         copy_host              (struct host* dstHost, 
                                                     struct host* srcHost);
 
 // Custom attribute stuff
-BBNETAPI extern void        *getHostCustomAttr     (struct host* host); 
-BBNETAPI extern void         setHostCustomAttr     (struct host* host,
+BBNETAPI extern void        *get_host_custom_attr     (struct host* host); 
+BBNETAPI extern void         set_host_custom_attr     (struct host* host,
                                                     void* ptr); 
 // TLS stuff
 // This expects an accepted TLS socket
-extern int                   attemptTLSHandshake   (struct host* host, 
+extern int                   attempt_tls_handshake   (struct host* host, 
                                                     SSL_CTX *sslContext);
-extern SSL                  *getHostSSL            (const struct host *restrict host);
+extern SSL                  *get_host_ssl            (const struct host *restrict host);
 
 // struct host Caching functions
-BBNETAPI extern void         cacheHost             (struct host* host, 
+BBNETAPI extern void         cache_host             (struct host* host, 
                                                     int cacheIndex);
-BBNETAPI extern void         uncacheHost           (struct host* host, 
+BBNETAPI extern void         uncache_host           (struct host* host, 
                                                     int cacheIndex);
-BBNETAPI extern void         clearHostCache        (int cacheIndex);
-extern const int             getCacheOccupancy     (int cacheIndex);
-extern struct host                 *getHostFromCache      (int cacheIndex,
+BBNETAPI extern void         clear_host_cache        (int cacheIndex);
+extern const int             get_cache_occupancy     (int cacheIndex);
+extern struct host                 *get_host_from_cache      (int cacheIndex,
                                                     int hostIndex);
-extern int                   getHostID             (struct host *host);
-extern bool                  isCached              (struct host* host);
+extern int                   get_host_id             (struct host *host);
+extern bool                  is_cached              (struct host* host);
 
 // Checking or setting an interface for listening
-extern void                  setCommunicating      (struct host* host);        // Sets the bListen boolean
-BBNETAPI extern void         closeConnections      (struct host* host);        // Unsets the bListen boolean
-extern bool                  isCommunicating       (const struct host* host);
-extern void                  setSocket             (struct host* host, 
+extern void                  set_communicating      (struct host* host);        // Sets the bListen boolean
+BBNETAPI extern void         close_connections      (struct host* host);        // Unsets the bListen boolean
+extern bool                  is_communicating       (const struct host* host);
+extern void                  set_socket             (struct host* host, 
                                                     socketfd_t sockfd);
-extern socketfd_t              getSocket             (const struct host* host);
+extern socketfd_t              get_socket             (const struct host* host);
 
 #endif
