@@ -14,7 +14,7 @@ int main(void)
 {
     printf("\nWelcome to the test client!");
     printf("\n-------------------------------\n");
-    Host* remotehost = createHost("127.0.0.1", 80);
+    struct host* remotehost = createHost("127.0.0.1", 80);
     connectToTCP (remotehost);
     sendDataTCP  ("Opening Connection!", 20, remotehost);
     for (int i = 0; i < 5; i++) {
