@@ -18,8 +18,8 @@
 #include "threadPool.h"
 #include "send.h"
 
-threadPool TCPthreadPool = NULL;
-threadPool UDPthreadPool = NULL;
+struct thread_pool *TCPthreadPool = NULL;
+struct thread_pool *UDPthreadPool = NULL;
 
 // global sslContext TCP... move this?
 static SSL_CTX *sslContext = NULL;
@@ -27,28 +27,28 @@ static SSL_CTX *sslContext = NULL;
 static void sigpipeIgnorer();
 
 // Global switch for what type of TCP recv() we'll be doing
-static PacketReceiverType packetReceiverType = PACKET_RECEIVER_TCP;
+static enum packet_receiver_type packetReceiverType = PACKET_RECEIVER_TCP;
 
-typedef ssize_t (*PacketReceiver)(packetReceptionArgs*);
-static inline ssize_t recv_TCP_unencrypted (packetReceptionArgs *restrict args);
-static inline ssize_t recv_TCP_encrypted   (packetReceptionArgs *restrict args);
+typedef ssize_t (*PacketReceiver)(struct packet_reception_args*);
+static inline ssize_t recv_TCP_unencrypted (struct packet_reception_args *restrict args);
+static inline ssize_t recv_TCP_encrypted   (struct packet_reception_args *restrict args);
 static PacketReceiver recv_variants[PACKET_RECEIVER_COUNT] = 
 { 
             recv_TCP_unencrypted,
             recv_TCP_encrypted
 };
 
-static void destroyPacketReceptionArgs (packetReceptionArgs **args);
+static void destroyPacketReceptionArgs (struct packet_reception_args **args);
 
-void setTCP_receiveType(PacketReceiverType type)
+void setTCP_receiveType(enum packet_receiver_type type)
 {
     packetReceiverType = type;
 }
 
-int listenForUDP(Host *localhost, void (*packet_handler)(char*, ssize_t, Host*))    //Should be called on it's own thread as the while loop is blocking 
+int listenForUDP(struct host *localhost, void (*packet_handler)(char*, ssize_t, struct host*))    //Should be called on it's own thread as the while loop is blocking 
 {    
-    const socketfd sockfd                     = createSocket(SOCK_DEFAULT_UDP);
-    Host           remotehost                 = { 0 };
+    const socketfd_t sockfd                     = createSocket(SOCK_DEFAULT_UDP);
+    struct host           remotehost                 = { 0 };
     ssize_t        numBytes                   = 0;
     socklen_t      len                        = 0;
     char           buffer[PACKET_BUFFER_SIZE] = { 0 };
@@ -98,11 +98,11 @@ int listenForUDP(Host *localhost, void (*packet_handler)(char*, ssize_t, Host*))
 
     return SUCCESS;
 }
-static int tryAcceptConnection(Host *localhost, Host *remotehost)
+static int tryAcceptConnection(struct host *localhost, struct host *remotehost)
 {
     socklen_t        addrLen       = 0;
     struct sockaddr *remoteAddress = NULL;
-    socketfd         sockfd        = 0;
+    socketfd_t         sockfd        = 0;
     int              err           = 0;
     // Need to cast the type because that's
     // just how sockets work
@@ -145,14 +145,14 @@ static void sigpipeIgnorer()
  * and listen until the localhost
  * is set not to listen any more.
  * */
-int listenForTCP(Host *localhost, 
-                 void (*packet_handler)(char*, ssize_t, Host*))
+int listenForTCP(struct host *localhost, 
+                 void (*packet_handler)(char*, ssize_t, struct host*))
 {
 #ifdef DEBUG
     fprintf(stderr, "\nListening for TCP connections...");
 #endif
-    packetReceptionArgs *receptionArgs = NULL;
-    Host                *remotehost    = NULL;
+    struct packet_reception_args *receptionArgs = NULL;
+    struct host                *remotehost    = NULL;
     int                  er            = 0;
 
     sigpipeIgnorer();
@@ -202,7 +202,7 @@ int listenForTCP(Host *localhost,
             }
         }
 
-        receptionArgs = (packetReceptionArgs*)calloc(1, sizeof(packetReceptionArgs));
+        receptionArgs = (struct packet_reception_args*)calloc(1, sizeof(struct packet_reception_args));
         if (receptionArgs == NULL) {
             goto early_exit;
         }
@@ -227,7 +227,7 @@ early_exit:
     destroyHost       (&localhost);
     return SUCCESS;
 }
-static inline ssize_t recv_TCP_unencrypted(packetReceptionArgs *restrict args)
+static inline ssize_t recv_TCP_unencrypted(struct packet_reception_args *restrict args)
 {
     ssize_t numBytes = 0;
     numBytes = recv(getSocket(args->remotehost), 
@@ -236,7 +236,7 @@ static inline ssize_t recv_TCP_unencrypted(packetReceptionArgs *restrict args)
                      0);
     return numBytes;
 }
-static inline ssize_t recv_TCP_encrypted(packetReceptionArgs *restrict args)
+static inline ssize_t recv_TCP_encrypted(struct packet_reception_args *restrict args)
 {
     ssize_t numBytes = 0;
     numBytes = SSL_read(getHostSSL(args->remotehost), 
@@ -244,7 +244,7 @@ static inline ssize_t recv_TCP_encrypted(packetReceptionArgs *restrict args)
                         PACKET_BUFFER_SIZE);
     return numBytes;
 }
-void receiveTCPpackets(packetReceptionArgs *args) 
+void receiveTCPpackets(struct packet_reception_args *args) 
 {
 #ifdef DEBUG
     fprintf(stderr, "\nReceiving a TCP packet in a thread...");
@@ -279,7 +279,7 @@ void receiveTCPpackets(packetReceptionArgs *args)
 /*
  * Precondition that args pointer and members not NULL
  */
-static void destroyPacketReceptionArgs(packetReceptionArgs **args)
+static void destroyPacketReceptionArgs(struct packet_reception_args **args)
 {
     if (*args == NULL) {
         return;

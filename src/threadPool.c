@@ -1,32 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <pthread.h>
-
 #include "threadPool.h"
-
-// Task structure
-typedef struct {
-    void (*function)(void *);
-    void *argument;
-} task_T;
-
-// Thread pool structure
-typedef struct threadPool_T {
-    pthread_t       threads [BB_MAX_THREADS];
-    task_T          tasks   [BB_MAX_TASKS];
-    pthread_mutex_t lock;
-    pthread_cond_t  notify;
-    int             task_count;
-    int             task_head;
-    int             task_tail;
-    int             shutdown;
-} threadPool_T;
 
 static void *executeTask(void *arg);
 
-int createThreadPool(threadPool_T **pool) 
+int createThreadPool(struct thread_pool **pool) 
 {
-    *pool = (threadPool_T*)calloc(1, sizeof(threadPool_T));
+    *pool = (struct thread_pool*)calloc(1, sizeof(struct thread_pool));
     if ((*pool) == NULL) {
         return -1;
     }
@@ -47,7 +27,7 @@ int createThreadPool(threadPool_T **pool)
 // Execute the task
 static void *executeTask(void *arg) 
 {
-    threadPool_T *pool = (threadPool_T *)arg;
+    struct thread_pool *pool = (struct thread_pool *)arg;
 
     while (1) {
         pthread_mutex_lock(&pool->lock);
@@ -61,7 +41,7 @@ static void *executeTask(void *arg)
             pthread_exit(NULL);
         }
 
-        task_T task = pool->tasks[pool->task_head];
+        struct task task = pool->tasks[pool->task_head];
         pool->task_head = (pool->task_head + 1) % BB_MAX_TASKS;
         pool->task_count--;
 
@@ -75,7 +55,7 @@ static void *executeTask(void *arg)
 }
 
 // Add a task to the thread pool
-void addTaskToThreadPool(threadPool_T *pool, void (*function)(void *), void *argument) 
+void addTaskToThreadPool(struct thread_pool *pool, void (*function)(void *), void *argument) 
 {
     pthread_mutex_lock  (&pool->lock);
 
@@ -96,7 +76,7 @@ void addTaskToThreadPool(threadPool_T *pool, void (*function)(void *), void *arg
 }
 
 // Shutdown the thread pool
-void destroyThreadPool(threadPool_T **pool) 
+void destroyThreadPool(struct thread_pool **pool) 
 {
     if ((*pool) == NULL) {
         return;

@@ -6,27 +6,27 @@
 #define SEND_TRYAGAIN -2
 #define SEND_ERROR    -1
 
-typedef struct {
-    Host       *remotehost;
+struct packet_sending_args{
+    struct host       *remotehost;
     const char *buffer;
     ssize_t     bytesToProcess;
-} PacketSendingArgs;
+};
 
-typedef enum {
+enum packet_sender_type {
     PACKET_SENDER_TCP,
     PACKET_SENDER_TLS,
     PACKET_SENDER_COUNT
-}PacketSenderType;
+};
 
 BBNETAPI int sendDataUDP  (const char *data, 
                            const ssize_t datasize, 
-                           Host *remotehost);
+                           struct host *remotehost);
 BBNETAPI int sendDataTCP  (const char *data, 
                            const size_t datasize, 
-                           Host *remotehost);
-BBNETAPI int connectToTCP (Host *remotehost);
+                           struct host *remotehost);
+BBNETAPI int connectToTCP (struct host *remotehost);
 
 
-void setTCP_sendType (PacketSenderType type);
+void setTCP_sendType (enum packet_sender_type type);
 
 #endif

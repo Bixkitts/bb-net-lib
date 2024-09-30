@@ -8,32 +8,32 @@
 
 #define RECV_ERROR    -1
 #define RECV_TRYAGAIN -2
-extern threadPool TCPthreadPool;
-extern threadPool UDPthreadPool;
+extern struct thread_pool *TCPthreadPool;
+extern struct thread_pool *UDPthreadPool;
 
-typedef struct {
-    Host       *localhost;
-    Host       *remotehost;
+struct packet_reception_args {
+    struct host       *localhost;
+    struct host       *remotehost;
     char       *buffer;
     ssize_t     bytesToProcess;
-    void      (*packet_handler)(char*, ssize_t, Host*);
-} packetReceptionArgs;
+    void      (*packet_handler)(char*, ssize_t, struct host*);
+};
 
-typedef enum {
+enum packet_receiver_type {
     PACKET_RECEIVER_TCP,
     PACKET_RECEIVER_TLS,
     PACKET_RECEIVER_COUNT
-}PacketReceiverType;
+};
 
-BBNETAPI int listenForUDP(Host *localhost, 
-                          void (*packet_handler)(char*, ssize_t, Host*));
+BBNETAPI int listenForUDP(struct host *localhost, 
+                          void (*packet_handler)(char*, ssize_t, struct host*));
 
-BBNETAPI int listenForTCP(Host *localhost, 
-                          void (*packet_handler)(char*, ssize_t, Host*));
+BBNETAPI int listenForTCP(struct host *localhost, 
+                          void (*packet_handler)(char*, ssize_t, struct host*));
 
-void setTCP_receiveType  (PacketReceiverType);
+void setTCP_receiveType  (enum packet_receiver_type);
 
-void receiveTCPpackets   (packetReceptionArgs *args);
-void receiveTLSpackets   (packetReceptionArgs *args);
+void receiveTCPpackets   (struct packet_reception_args *args);
+void receiveTLSpackets   (struct packet_reception_args *args);
 
 #endif

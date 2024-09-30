@@ -13,12 +13,12 @@
 #include "clientObject.h"
 #include "socketfd.h"
 
-extern socketfd createSocket      (socketfd value);
-extern void     closeSocket       (socketfd socket);
-extern int      bindSocket        (socketfd sockfd, 
-                                   Host* localhost);
-extern int      setSocketNonBlock (socketfd sockfd);
-extern int      setSocketTimeout  (socketfd sockfd, 
+extern socketfd_t createSocket      (socketfd_t value);
+extern void     closeSocket       (socketfd_t socket);
+extern int      bindSocket        (socketfd_t sockfd, 
+                                   struct host* localhost);
+extern int      setSocketNonBlock (socketfd_t sockfd);
+extern int      setSocketTimeout  (socketfd_t sockfd, 
                                    long secs);
 
 #endif

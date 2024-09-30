@@ -10,9 +10,9 @@
 #include "clientObject.h"
 #include "socketsNetLib.h"
 
-socketfd createSocket(socketfd value)             
+socketfd_t createSocket(socketfd_t value)             
 {
-    socketfd sockfd = value;
+    socketfd_t sockfd = value;
     if (IS_INVALID_FD(socket)) { 
         perror("\nSocket creation failed"); 
         return ERROR;
@@ -20,12 +20,12 @@ socketfd createSocket(socketfd value)
     return sockfd;
 }
 
-void closeSocket(socketfd sockfd)
+void closeSocket(socketfd_t sockfd)
 {
     close(sockfd);
 }
 
-int bindSocket(socketfd sockfd, Host* localhost)
+int bindSocket(socketfd_t sockfd, struct host* localhost)
 {
     struct sockaddr* boundAddress = ( struct sockaddr *)&localhost->address;
     if(FAILURE(bind(sockfd, 
@@ -36,7 +36,7 @@ int bindSocket(socketfd sockfd, Host* localhost)
     }
     return SUCCESS;
 }
-int setSocketNonBlock(socketfd sockfd)
+int setSocketNonBlock(socketfd_t sockfd)
 {    
     int flags = fcntl(sockfd, F_GETFL, 0);
     if (flags == -1) {
@@ -52,7 +52,7 @@ int setSocketNonBlock(socketfd sockfd)
  * This only works for blocking sockets,
  * don't use.
  */
-int setSocketTimeout(socketfd sockfd, long secs)
+int setSocketTimeout(socketfd_t sockfd, long secs)
 {
     struct timeval timeout = {};
     timeout.tv_sec  = secs;   // 5 seconds

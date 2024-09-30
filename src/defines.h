@@ -15,12 +15,12 @@
 // coming in from UDP or TCP.
 #define PACKET_BUFFER_SIZE 1024
 
-typedef enum {
+enum err_string_enum {
     STR_ERROR_UNKNOWN,
     STR_ERROR_MALLOC,
     STR_ERROR_HOST_CACHE_INDEX,
     STR_ERROR_COUNT
-}errStringEnum;
+};
 
 extern const char *const errStrings[];
 
