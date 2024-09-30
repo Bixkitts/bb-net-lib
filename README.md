@@ -60,41 +60,41 @@ Here's TCP:
 // We want to store the localhost.
 // I've used a global, but you can
 // use accessors or a database or anything.
-Host localHost = NULL;
+struct host *localhost = NULL;
 
-void yourTCPpacketHandler (char* receivedPacketData, 
-                           ssize_t sizeOfPacket, 
-                           Host hostThatSentThePacket)
+void your_tcp_packet_handler (char* received_packet_data, 
+                              ssize_t size_of_packet, 
+                              struct host *host_that_sent_the_packet)
 {
     // Enable TLS encryption
-    enableEncryption();
-    Host remotehost = hostThatSentThePacket;
+    enable_encryption();
+    struct host *remotehost = host_that_sent_the_packet;
     // Send some data back
     const char data[] = "Hello there!";
-    ssize_t    dataSize = 13;
-    sendDataTCP(data, datasize, remotehost);
+    ssize_t    data_size = 13;
+    send_data_tcp(data, datasize, remotehost);
     // We can cache this host
     // in up to 16 caches for
     // later multicasts!
-    int cacheIndex = 0;
-    cacheHost(remotehost, cacheIndex);
+    int cache_index = 0;
+    cache_host(remotehost, cache_index);
     // Send the same packet to a cache full of hosts
-    multicastTCP(data, datasize, cacheIndex);
+    multicast_tcp(data, datasize, cache_index);
     // TCP:
     // We've decided we're completely done with this host,
     // Stop communicating with them.
-    closeConnections(remotehost);
+    close_connections(remotehost);
     // We just need to close connections on the localhost
-    // and then we escape the top level listenTCP()
+    // and then we escape the top level listen_tcp()
     // function!
     if (WERE_BORED) {
-        closeConnections(localhost)
+        close_connections(localhost)
     }
 }
 int main() 
 {
-    localhost = createHost("YOUR.IP", 1234);
-    listenTCP (localhost, yourTCPpacketHandler);
+    localhost = create_host("YOUR.IP", 1234);
+    listen_tcp (localhost, your_tcp_packet_handler);
     return 0;
 }
 ```
@@ -103,41 +103,41 @@ Here's UDP, it's almost the same:
 // We want to store the localhost.
 // I've used a global, but you can
 // use accessors or a database or anything.
-Host localHost = NULL;
+struct host *local_host = NULL;
 
-Host cachedRemoteHost;
+struct host *cached_remote_host;
 
-void yourUDPpacketHandler (char* receivedPacketData, 
-                           ssize_t sizeOfPacket, 
-                           Host hostThatSentThePacket)
+void your_upd_packet_handler (char* received_packet_data, 
+                              ssize_t size_of_packet, 
+                              struct host *host_that_sent_the_packet)
 {
-    Host remotehost = hostThatSentThePacket;
+    struct host *remotehost = host_that_sent_the_packet;
     // Get the IP of the remotehost:
-    char ip[IP_ADDR_LEN] = getIp(remotehost);
+    char ip[IP_ADDR_LEN] = get_ip(remotehost);
     // Send some data back
     const char data[] = "Hello there!";
-    ssize_t    dataSize = 13;
+    ssize_t    data_size = 13;
     // UDP is connectionless, we just send a packet
     // back to a remote host.
-    sendDataUDP(data, 13, remotehost);
+    send_data_udp(data, 13, remotehost);
     // We just need to close connections on the localhost
     // and then we escape the top level listenUDP()
     // function!
     if (WERE_BORED) {
-        closeConnections(localhost)
+        close_connections(localhost)
     }
 }
 int main() 
 {
-    localhost = createHost("YOUR.IP", 1234);
-    listenUDP (localhost, yourUDPpacketHandler);
+    localhost = create_host("YOUR.IP", 1234);
+    listen_udp (localhost, your_udp_packet_handler);
     return 0;
 }
 ```
 
 Maximum packet size is <b>1024 bytes</b>, so you know it's a full packet when that's the received size.
 
-Receiving a <b>packet size of 0</b> in the packetHandler means the remote host negotiated a disconnect,
+Receiving a <b>packet size of 0</b> in the packet_handler means the remote host negotiated a disconnect,
 
 and <b>-1 packet size</b> means an error (typically a timeout).
 
@@ -149,7 +149,7 @@ Hit me up and help me write it.
 Request features by opening an issue.
 
 ## Encryption?
-Yes, just enableEncryption() for TLS and have a certificate and key for it next to the binary.
+Yes, just enable_encryption() for TLS and have a certificate and key for it next to the binary.
 
 ## Planned Features
 - Nothing really right now, I'm just using this to power my own webservers
