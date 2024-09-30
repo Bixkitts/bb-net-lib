@@ -5,5 +5,4 @@
 
 BBNETAPI void enable_tls();
 
-
 #endif
