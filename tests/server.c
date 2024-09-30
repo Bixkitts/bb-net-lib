@@ -1,9 +1,9 @@
 #include <stdio.h>
 #include "bbnetlib.h"
 #include <unistd.h>
-Host localhost = NULL;
+Host* localhost = NULL;
 
-void testPacketHandler(char *data, ssize_t packetSize, Host remotehost)
+void testPacketHandler(char *data, ssize_t packetSize, Host* remotehost)
 {
     printf("\nReceived data:");
     for (int i = 0; i < packetSize; i++) {
