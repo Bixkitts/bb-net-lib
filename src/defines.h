@@ -1,5 +1,7 @@
 #ifndef DEFINES
 #define DEFINES
+
+#include <stdarg.h>
 // This is a static library so the visibility attribute
 // won't do anything but you may also want to compile this
 // as a shared library in which case this becomes valid.
@@ -23,5 +25,6 @@ enum err_string_enum {
 };
 
 extern const char *const err_strings[];
+extern void debug_print(const char *format, ...);
 
 #endif

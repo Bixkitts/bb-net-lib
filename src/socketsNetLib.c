@@ -34,6 +34,7 @@ int bind_socket(socketfd_t sockfd, struct host *localhost)
     }
     return SUCCESS;
 }
+
 int set_socket_non_block(socketfd_t sockfd)
 {
     int flags = fcntl(sockfd, F_GETFL, 0);
@@ -46,6 +47,7 @@ int set_socket_non_block(socketfd_t sockfd)
     }
     return SUCCESS;
 }
+
 /*
  * This only works for blocking sockets,
  * don't use.
@@ -70,5 +72,35 @@ int set_socket_timeout(socketfd_t sockfd, long secs)
         perror("\nSetsockopt error");
     }
 
+    return 0;
+}
+
+int init_socket_poller(struct socket_epoller *epoller)
+{
+    memset(epoller, 0, sizeof(*epoller));
+    int epoll_fd = epoll_create1(0); // Create epoll instance
+    if (epoll_fd == -1) {
+        perror("epoll_create1");
+    }
+    epoller->epoll_fd = epoll_fd;
+    return epoll_fd;
+}
+
+void destroy_socket_poller(struct socket_epoller *epoller)
+{
+    close(epoller->epoll_fd);
+}
+
+int add_socket_to_epoll(struct host *host, struct socket_epoller *epoller)
+{
+    // Add listening socket to epoll
+    struct epoll_event event;
+    event.data.ptr = host;
+    event.events = EPOLLIN | EPOLLET; // Wait for incoming connections, edge-triggered
+
+    if (epoll_ctl(epoller->epoll_fd, EPOLL_CTL_ADD, get_socket(host), &event) == -1) {
+        perror("epoll_ctl");
+        return -1;
+    }
     return 0;
 }

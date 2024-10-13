@@ -27,10 +27,10 @@ static void remove_host_at_cache_index(int cacheIndex, int hostIndex);
 
 struct host *create_host(const char *ip, const uint16_t port)
 {
+    // TODO: custom allocator
     struct host *host = NULL;
-
-    host = (struct host *)calloc(1, sizeof(struct host));
-    if (host == NULL) {
+    host = calloc(1, sizeof(*host));
+    if (!host) {
         perror(err_strings[STR_ERROR_MALLOC]);
         return NULL;
     }

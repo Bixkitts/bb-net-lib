@@ -6,8 +6,10 @@
 #include "threadPool.h"
 #include <stdbool.h>
 
-#define RECV_ERROR    -1
-#define RECV_TRYAGAIN -2
+#define RECV_ERROR       -1
+#define RECV_TRYAGAIN    -2
+#define MAX_EPOLL_EVENTS 32
+
 extern struct thread_pool *tcp_thread_pool;
 extern struct thread_pool *udp_thread_pool;
 
