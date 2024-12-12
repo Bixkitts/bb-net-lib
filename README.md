@@ -54,7 +54,7 @@ except you do
 without --target install.
 Then do with the resultant libbbnetlib.a and include header as you see fit.
 
-## No, How Do I Write With It?
+## Now, How Do I Write With It?
 Here's TCP:
 ```c
 // We want to store the localhost.
