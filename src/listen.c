@@ -257,7 +257,7 @@ static void tcp_accept_loop(struct host *localhost,
 int listen_for_tcp(struct host *localhost,
                    void (*packet_handler)(char *, ssize_t, struct host *))
 {
-    debug_print(stderr, "\nListening for TCP connections...");
+    debug_print("\nListening for TCP connections...\n");
     struct socket_epoller         epoller        ={0};
 
     sigpipe_ignorer();
