@@ -4,24 +4,24 @@
 
 static void *execute_task(void *arg);
 
-int create_thread_pool(struct thread_pool **pool)
+struct thread_pool *create_thread_pool()
 {
-    *pool = (struct thread_pool *)calloc(1, sizeof(struct thread_pool));
-    if ((*pool) == NULL) {
-        return -1;
+    struct thread_pool *pool = calloc(1, sizeof(struct thread_pool));
+    if (!pool) {
+        return NULL;
     }
 
-    pthread_mutex_init(&(*pool)->lock, NULL);
-    pthread_cond_init(&(*pool)->notify, NULL);
-    (*pool)->task_count = 0;
-    (*pool)->task_head  = 0;
-    (*pool)->task_tail  = 0;
-    (*pool)->shutdown   = 0;
+    pthread_mutex_init(&pool->lock, NULL);
+    pthread_cond_init(&pool->notify, NULL);
+    pool->task_count = 0;
+    pool->task_head  = 0;
+    pool->task_tail  = 0;
+    pool->shutdown   = 0;
 
     for (int i = 0; i < BB_MAX_THREADS; i++) {
-        pthread_create(&(*pool)->threads[i], NULL, execute_task, (*pool));
+        pthread_create(&pool->threads[i], NULL, execute_task, pool);
     }
-    return 0;
+    return pool;
 }
 
 // Execute the task

@@ -40,7 +40,15 @@ static packet_receiver_t recv_variants[PACKET_RECEIVER_COUNT] = {
     recv_tcp_unencrypted,
     recv_tcp_encrypted};
 
+// TODO: Move these to their own file
+// and have a special allocator
 static void destroy_packet_reception_args(struct packet_reception_args **args);
+static struct packet_reception_args
+*create_packet_reception_args(struct host *localhost,
+                              struct host *remotehost,
+                              void (*packet_handler)(char *,
+                                                     ssize_t,
+                                                     struct host *));
 
 void set_tcp_receive_type(enum packet_receiver_type type)
 {
@@ -150,17 +158,18 @@ static void set_up_tls()
     }
 }
 
-static void packet_handle_in_new_thread(struct host *localhost,
-                                        struct host *remotehost,
-                                        void (*packet_handler)(char *,
-                                                               ssize_t, 
-                                                               struct host *))
+static struct packet_reception_args
+*create_packet_reception_args(struct host *localhost,
+                              struct host *remotehost,
+                              void (*packet_handler)(char *,
+                                                     ssize_t,
+                                                     struct host *))
 {
     // TODO: custom allocator, calloc here sucks
     struct packet_reception_args *reception_args = NULL;
     reception_args = calloc(1, sizeof(*reception_args));
     if (!reception_args) {
-        return;
+        return NULL;
     }
     reception_args->remotehost     = remotehost;
     reception_args->localhost      = localhost;
@@ -170,8 +179,21 @@ static void packet_handle_in_new_thread(struct host *localhost,
     if (!reception_args->buffer) {
         destroy_host(&remotehost);
         free(reception_args);
-        return;
+        return NULL;
     }
+    return reception_args;
+}
+
+static void packet_handle_in_new_thread(struct host *localhost,
+                                        struct host *remotehost,
+                                        void (*packet_handler)(char *,
+                                                               ssize_t, 
+                                                               struct host *))
+{
+    struct packet_reception_args
+        *reception_args = create_packet_reception_args(localhost,
+                                                       remotehost,
+                                                       packet_handler);
     add_task_to_thread_pool(tcp_thread_pool,
                             (void *)receive_tcp_packets,
                             reception_args);
@@ -235,13 +257,14 @@ static void tcp_accept_loop(struct host *localhost,
 int listen_for_tcp(struct host *localhost,
                    void (*packet_handler)(char *, ssize_t, struct host *))
 {
-#ifdef DEBUG
-    fprintf(stderr, "\nListening for TCP connections...");
-#endif
+    debug_print(stderr, "\nListening for TCP connections...");
     struct socket_epoller         epoller        ={0};
 
     sigpipe_ignorer();
-    create_thread_pool(&tcp_thread_pool);
+    tcp_thread_pool = create_thread_pool();
+    if (!tcp_thread_pool) {
+        return ERROR;
+    }
     set_socket(localhost, create_socket(SOCK_DEFAULT_TCP));
     set_socket_non_block(get_socket(localhost));
 
@@ -291,7 +314,7 @@ recv_tcp_encrypted(struct packet_reception_args *restrict args)
 }
 
 /* will always be ran in it's own thread,
- * and is responsible for args */
+ * and is responsible for cleaning up args */
 void receive_tcp_packets(struct packet_reception_args *args)
 {
     debug_print("Receiving TCP packets in a thread...\n");

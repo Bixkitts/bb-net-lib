@@ -4,7 +4,7 @@
 #define BB_THREAD_POOL
 
 #define BB_MAX_THREADS 16
-#define BB_MAX_TASKS   1000
+#define BB_MAX_TASKS   1024
 
 struct task {
     void (*function)(void *);
@@ -22,7 +22,7 @@ struct thread_pool {
     int shutdown;
 };
 
-int create_thread_pool(struct thread_pool **pool);
+struct thread_pool *create_thread_pool();
 void add_task_to_thread_pool(struct thread_pool *pool,
                              void (*function)(void *),
                              void *argument);
