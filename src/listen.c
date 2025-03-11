@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -25,7 +26,7 @@ struct thread_pool *udp_thread_pool = NULL;
 // global sslContext TCP... move this?
 static SSL_CTX *ssl_context = NULL;
 
-static void sigpipe_ignorer();
+static void sigpipe_ignorer(void);
 
 // Global switch for what type of TCP recv() we'll be doing
 static enum packet_receiver_type packet_receiver_type = PACKET_RECEIVER_TCP;
@@ -63,10 +64,9 @@ int listen_for_udp(struct host *localhost,
                                                   // own thread as the while
                                                   // loop is blocking
 {
-    const socketfd_t sockfd         = create_socket(SOCK_DEFAULT_UDP);
-    struct host remotehost          = {0};
-    ssize_t num_bytes               = 0;
-    socklen_t len                   = 0;
+    const socketfd_t sockfd = create_socket(SOCK_DEFAULT_UDP);
+    struct host *remotehost = create_host("0.0.0.0",0);
+    ssize_t num_bytes       = 0;
     char buffer[PACKET_BUFFER_SIZE] = {0};
 
     if (FAILURE(bind_socket(sockfd, localhost))) {
@@ -75,12 +75,11 @@ int listen_for_udp(struct host *localhost,
     }
 
     set_communicating(localhost);
-    set_communicating(&remotehost);
+    set_communicating(remotehost);
 
-    len = sizeof(localhost->address);
-    // Need to cast the pointer to a sockaddr type to satisfy the syscall
-    struct sockaddr *remote_address = (struct sockaddr *)&remotehost.address;
-
+    struct sockaddr *remote_address =
+        (struct sockaddr *)get_host_addr(remotehost);
+    socklen_t len = sizeof(remote_address);
     while (is_communicating(localhost)) {
         num_bytes = recvfrom(sockfd,
                              buffer,
@@ -100,46 +99,46 @@ int listen_for_udp(struct host *localhost,
         // TODO: this is currently blocking and should run in it's own thread
         // from the pool, but I don't need UDP right now and even if I did it
         // should be _okay_ for a small amount of hosts.
-        packet_handler(buffer, num_bytes, &remotehost);
+        packet_handler(buffer, num_bytes, remotehost);
     }
 
     if (is_communicating(localhost)) {
         close_connections(localhost);
     }
-    if (is_communicating(&remotehost)) {
-        close_connections(&remotehost);
+    if (is_communicating(remotehost)) {
+        close_connections(remotehost);
     }
 
     return SUCCESS;
 }
 
-static int try_accept_connection(struct host *localhost,
+// Caller is expected to check return
+// value and clean up remotehost
+static int try_accept_connection(const struct host *localhost,
                                  struct host *remotehost)
 {
-    struct sockaddr *remote_address = (struct sockaddr *)&remotehost->address;
-    socklen_t        addr_len       = sizeof(remotehost->address);
-    socketfd_t       sockfd;
-
-    sockfd = accept(get_socket(localhost), remote_address, &addr_len);
-    if (sockfd == -1) {
+    struct sockaddr *remote_address =
+        (struct sockaddr *)get_host_addr(remotehost);
+    socklen_t addr_len = sizeof(*remote_address);
+    set_socket(remotehost, accept(get_socket(localhost),
+                                  remote_address,
+                                  &addr_len));
+    if (get_socket(remotehost) == -1) {
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
             return RECV_TRYAGAIN; // No connection ready, try again later
         } else {
-            perror("accept");
+            perror("accepting connection");
             return RECV_ERROR;
         }
     }
-    if (set_socket_non_block(sockfd) == -1) {
-        close(sockfd);
+    if (set_socket_non_block(get_socket(remotehost)) == -1) {
         return RECV_ERROR;
     }
-    set_socket(remotehost, sockfd);
     set_communicating(remotehost);
-
     return 0;
 }
 
-static void sigpipe_ignorer()
+static void sigpipe_ignorer(void)
 {
     static sigset_t set;
     sigemptyset(&set);
@@ -150,7 +149,7 @@ static void sigpipe_ignorer()
     }
 }
 
-static void set_up_tls()
+static void set_up_tls(void)
 {
     if (packet_receiver_type == PACKET_RECEIVER_TLS) {
         ssl_context = create_ssl_context();
@@ -177,7 +176,6 @@ static struct packet_reception_args
     reception_args->bytesToProcess = 0;
     reception_args->buffer = calloc(PACKET_BUFFER_SIZE, sizeof(char));
     if (!reception_args->buffer) {
-        destroy_host(&remotehost);
         free(reception_args);
         return NULL;
     }
@@ -194,35 +192,38 @@ static void packet_handle_in_new_thread(struct host *localhost,
         *reception_args = create_packet_reception_args(localhost,
                                                        remotehost,
                                                        packet_handler);
+    if (!reception_args) {
+        destroy_host(&remotehost);
+        return;
+    }
     add_task_to_thread_pool(tcp_thread_pool,
-                            (void *)receive_tcp_packets,
+                            (void (*)(void *))receive_tcp_packets,
                             reception_args);
 }
 
 static void proc_epolled_tcp_socks(struct host *localhost,
-                                   struct socket_epoller *localhost_poller,
                                    int num_incoming_conn,
                                    void (*packet_handler)(char *, ssize_t, struct host *))
 {
     int er = 0;
     for (int i = 0; i < num_incoming_conn; i++) {
-        struct host *host_with_socket_activity =
-            (struct host *)localhost_poller->events[i].data.ptr;
+        //struct host *host_with_socket_activity =
+        //    (struct host *)localhost_poller->events[i].data.ptr;
         struct host *remotehost = create_host("", 0000);
         if (!remotehost) {
-            fprintf(stderr, "\nFatal error.\n");
-            break;
+            fprintf(stderr, "\nFatal error creating host.\n");
+            continue;
         }
         er = try_accept_connection(localhost, remotehost);
         if (er) {
             destroy_host(&remotehost);
-            break;
+            continue;
         }
         if (packet_receiver_type == PACKET_RECEIVER_TLS) {
             if (FAILURE(attempt_tls_handshake(remotehost, ssl_context))) {
                 perror("\nError: TLS Handshake failed.\n");
                 destroy_host(&remotehost);
-                break;
+                continue;
             }
         }
         packet_handle_in_new_thread(localhost,
@@ -235,15 +236,18 @@ static void tcp_accept_loop(struct host *localhost,
                             struct socket_epoller *epoller,
                             void (*packet_handler)(char *, ssize_t, struct host *))
 {
+    assert(epoller->epoll_fd == get_socket(localhost));
     while (is_communicating(localhost)) {
-        int n = epoll_wait(epoller->epoll_fd, epoller->events, MAX_EPOLL_EVENTS, -1);
-        if (n == -1) {
+        int number_of_sockets_ready = epoll_wait(epoller->epoll_fd,
+                                                 epoller->events,
+                                                 MAX_EPOLL_EVENTS,
+                                                 -1);
+        if (number_of_sockets_ready == -1) {
             perror("epoll_wait");
             break;
         }
         proc_epolled_tcp_socks(localhost,
-                               epoller,
-                               n,
+                               number_of_sockets_ready,
                                packet_handler);
     }
 }
@@ -275,6 +279,7 @@ int listen_for_tcp(struct host *localhost,
 
     if (FAILURE(bind_socket(get_socket(localhost), localhost))) {
         perror("Failed to listen for TCP\n");
+        destroy_host(&localhost); 
         return ERROR;
     }
     set_communicating(localhost);
@@ -282,6 +287,7 @@ int listen_for_tcp(struct host *localhost,
         printf("\nError: listen() failed with errno %d: %s\n",
                errno,
                strerror(errno));
+        destroy_host(&localhost); 
         return ERROR;
     }
 
@@ -289,7 +295,6 @@ int listen_for_tcp(struct host *localhost,
 
     destroy_thread_pool(&tcp_thread_pool);
     destroy_socket_poller(&epoller);
-    close_socket(get_socket(localhost));
     SSL_CTX_free(ssl_context);
     destroy_host(&localhost);
     return SUCCESS;
@@ -322,7 +327,7 @@ void receive_tcp_packets(struct packet_reception_args *args)
     // TODO: we could actually handle multiple
     // sockets per thread instead of a fresh
     // thread for each socket!
-    struct socket_epoller remotehost_poller = {};
+    struct socket_epoller remotehost_poller = {0};
 
     init_socket_poller(&remotehost_poller);
     add_socket_to_epoll(args->remotehost, &remotehost_poller);
@@ -333,7 +338,7 @@ void receive_tcp_packets(struct packet_reception_args *args)
             close_connections(args->remotehost);
         }
         for (int i = 0; i < n; i++) {
-            struct host *host_with_socket_activity = (struct host *)remotehost_poller.events[i].data.ptr;
+            //struct host *host_with_socket_activity = (struct host *)remotehost_poller.events[i].data.ptr;
             num_bytes = recv_variants[packet_receiver_type](args);
             if (num_bytes >= 0) {
                 args->packet_handler(args->buffer, num_bytes, args->remotehost);

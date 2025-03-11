@@ -13,8 +13,8 @@
 socketfd_t create_socket(socketfd_t value)
 {
     socketfd_t sockfd = value;
-    if (IS_INVALID_FD(socket)) {
-        perror("\nSocket creation failed");
+    if (IS_INVALID_FD(sockfd)) {
+        perror("Socket creation failed");
         return ERROR;
     }
     return sockfd;
