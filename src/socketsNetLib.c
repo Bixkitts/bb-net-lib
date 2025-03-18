@@ -25,29 +25,6 @@ void close_socket(socketfd_t sockfd)
     close(sockfd);
 }
 
-int bind_socket(socketfd_t sockfd, struct host *localhost)
-{
-    struct sockaddr *bound_address = (struct sockaddr *)&localhost->address;
-    if (FAILURE(bind(sockfd, bound_address, sizeof(localhost->address)))) {
-        perror("\nFailed to bind socket!");
-        return ERROR;
-    }
-    return SUCCESS;
-}
-
-int set_socket_non_block(socketfd_t sockfd)
-{
-    int flags = fcntl(sockfd, F_GETFL, 0);
-    if (flags == -1) {
-        return ERROR;
-    }
-    if (fcntl(sockfd, F_SETFL, flags | O_NONBLOCK) == -1) {
-        perror("Error setting socket to non-blocking mode");
-        return ERROR;
-    }
-    return SUCCESS;
-}
-
 /*
  * This only works for blocking sockets,
  * don't use.

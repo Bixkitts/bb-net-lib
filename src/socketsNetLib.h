@@ -24,8 +24,6 @@ struct socket_epoller {
 
 extern socketfd_t create_socket(socketfd_t value);
 extern void close_socket(socketfd_t socket);
-extern int bind_socket(socketfd_t sockfd, struct host *localhost);
-extern int set_socket_non_block(socketfd_t sockfd);
 extern int set_socket_timeout(socketfd_t sockfd, long secs);
 
 /* Initialise an epoller we can use later.

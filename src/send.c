@@ -83,7 +83,6 @@ int send_data_tcp(const char *data,
     while (total_bytes_sent < datasize) {
         // A switch to send packets in different ways
         status = send_variants[packet_sender_type](&send_args);
-
         if (status == -1) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
                 if (wait_for_ready(get_socket(remotehost)) < 0) {

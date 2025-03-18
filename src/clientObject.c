@@ -1,5 +1,6 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <fcntl.h>
 #include <pthread.h>
 #include <stdatomic.h>
 #include <stdbool.h>
@@ -17,6 +18,7 @@
 struct host {
     char address_string[INET_ADDRSTRLEN];
     struct sockaddr_in address; // The socket it contains (IP and port)
+    socklen_t address_len;
     SSL *ssl;                   // Not NULL if we're connected over SSL
     void *custom_attr;      // Library user can store whatever in here
     int id;
@@ -181,17 +183,15 @@ void destroy_host(struct host **host)
         }
         SSL_free((*host)->ssl);
     }
-
     close((*host)->associated_socket);
-
     free(*host);
     *host = NULL;
 }
 
-int attempt_tls_handshake(struct host *host, SSL_CTX *sslContext)
+int attempt_tls_handshake(struct host *host, SSL_CTX *ssl_context)
 {
-    host->ssl = SSL_new(sslContext);
-    SSL_set_fd(host->ssl, get_socket(host));
+    host->ssl = SSL_new(ssl_context);
+    SSL_set_fd(host->ssl, host->associated_socket);
     int ssl_accept_result = 0;
 
     while (ssl_accept_result <= 0) {
@@ -217,6 +217,44 @@ void close_connections(struct host *host)
 void set_communicating(struct host *host)
 {
     host->is_listening = 1;
+}
+
+int bind_host_socket(struct host *host)
+{
+    struct sockaddr *bound_address = (struct sockaddr *)&host->address;
+    if (FAILURE(bind(host->associated_socket, bound_address, sizeof(host->address)))) {
+        perror("Failed to bind socket!\n");
+        return ERROR;
+    }
+    return SUCCESS;
+}
+
+int set_host_non_blocking(struct host *host)
+{
+    const socketfd_t target_socket = host->associated_socket;
+    int flags = fcntl(target_socket, F_GETFL, 0);
+    if (flags == -1) {
+        return ERROR;
+    }
+    if (fcntl(target_socket, F_SETFL, flags | O_NONBLOCK) == -1) {
+        perror("Error setting socket to non-blocking mode");
+        return ERROR;
+    }
+    return SUCCESS;
+}
+
+// Returns -1 on error.
+int host_accept(struct host *dst_host,
+                const struct host *listening_host)
+{
+    dst_host->address_len = sizeof(struct sockaddr);
+    socketfd_t sock = accept(listening_host->associated_socket,
+                             (struct sockaddr *)&dst_host->address,
+                             &dst_host->address_len);
+    if (0 > sock) {
+        return -1;
+    }
+    return dst_host->associated_socket = sock;
 }
 
 bool is_communicating(const struct host *host)

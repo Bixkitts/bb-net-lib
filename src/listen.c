@@ -117,13 +117,9 @@ int listen_for_udp(struct host *localhost,
 static int try_accept_connection(const struct host *localhost,
                                  struct host *remotehost)
 {
-    struct sockaddr *remote_address =
-        (struct sockaddr *)get_host_addr(remotehost);
-    socklen_t addr_len = sizeof(*remote_address);
-    set_socket(remotehost, accept(get_socket(localhost),
-                                  remote_address,
-                                  &addr_len));
-    if (get_socket(remotehost) == -1) {
+    int er = host_accept(remotehost,
+                         localhost);
+    if (er == -1) {
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
             return RECV_TRYAGAIN; // No connection ready, try again later
         } else {
@@ -131,7 +127,7 @@ static int try_accept_connection(const struct host *localhost,
             return RECV_ERROR;
         }
     }
-    if (set_socket_non_block(get_socket(remotehost)) == -1) {
+    if (set_host_non_blocking(remotehost) == -1) {
         return RECV_ERROR;
     }
     set_communicating(remotehost);
@@ -270,14 +266,14 @@ int listen_for_tcp(struct host *localhost,
         return ERROR;
     }
     set_socket(localhost, create_socket(SOCK_DEFAULT_TCP));
-    set_socket_non_block(get_socket(localhost));
+    set_host_non_blocking(localhost);
 
     set_up_tls();
 
     init_socket_poller(&epoller);
     add_socket_to_epoll(localhost, &epoller);
 
-    if (FAILURE(bind_socket(get_socket(localhost), localhost))) {
+    if (FAILURE(bind_host_socket(localhost))) {
         perror("Failed to listen for TCP\n");
         destroy_host(&localhost); 
         return ERROR;
@@ -329,8 +325,12 @@ void receive_tcp_packets(struct packet_reception_args *args)
     // thread for each socket!
     struct socket_epoller remotehost_poller = {0};
 
-    init_socket_poller(&remotehost_poller);
-    add_socket_to_epoll(args->remotehost, &remotehost_poller);
+    if (0 > init_socket_poller(&remotehost_poller)) {
+        goto cleanup;
+    };
+    if (0 > add_socket_to_epoll(args->remotehost, &remotehost_poller)) {
+        goto cleanup_epoller;
+    }
     while (is_communicating(args->remotehost)) {
         int n = epoll_wait(remotehost_poller.epoll_fd, remotehost_poller.events, MAX_EPOLL_EVENTS, -1);
         if (n == -1) {
@@ -357,9 +357,10 @@ void receive_tcp_packets(struct packet_reception_args *args)
         }
     }
     send_data_tcp(NULL, 0, args->remotehost);
-    close_socket(get_socket(args->remotehost));
-    destroy_packet_reception_args(&args);
+cleanup_epoller:
     destroy_socket_poller(&remotehost_poller);
+cleanup:
+    destroy_packet_reception_args(&args);
     return;
 }
 

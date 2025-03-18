@@ -32,6 +32,7 @@ BBNETAPI extern void copy_host(struct host *dstHost, const struct host *srcHost)
 // Custom attribute stuff
 BBNETAPI extern void *get_host_custom_attr(const struct host *host);
 BBNETAPI extern void set_host_custom_attr(struct host *host, const void *ptr);
+extern int set_host_non_blocking(struct host *host);
 // TLS stuff
 // This expects an accepted TLS socket
 extern int attempt_tls_handshake(struct host *host, SSL_CTX *sslContext);
@@ -46,6 +47,8 @@ extern struct host *get_host_from_cache(int cache_index, int host_index);
 extern int get_host_id(const struct host *host);
 extern bool is_cached(const struct host *host);
 extern const struct sockaddr_in *get_host_addr(const struct host *host);
+extern socketfd_t host_accept(struct host *dst_host,
+                              const struct host *listening_host);
 
 // Checking or setting an interface for listening
 extern void set_communicating(struct host *host); // Sets the bListen boolean
