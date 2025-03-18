@@ -33,7 +33,7 @@ extern int init_socket_poller(struct socket_epoller *epoller);
 /* Adds the socket associated with a host
  * to the epoll list in a socket_poller
  * so when we epoll_wait(), it's included. */
-extern int add_socket_to_epoll(struct host *host, struct socket_epoller *epoller);
+extern int add_host_socket_to_epoll(struct host *host, struct socket_epoller *epoller);
 extern void destroy_socket_poller(struct socket_epoller *epoller);
 
 #endif

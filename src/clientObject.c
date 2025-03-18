@@ -1,6 +1,7 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <fcntl.h>
+#include <errno.h>
 #include <pthread.h>
 #include <stdatomic.h>
 #include <stdbool.h>
@@ -21,11 +22,11 @@ struct host {
     socklen_t address_len;
     SSL *ssl;                   // Not NULL if we're connected over SSL
     void *custom_attr;      // Library user can store whatever in here
-    int id;
     socketfd_t associated_socket; // Socket that gets associated with this host.
                                  // This allows the socket from a connection
                                  // to be saved and reused!
     bool is_listening;  // Is this host supposed to be currently listening on a thread
+    bool is_connected;  // Is a part of an ongoing connection
 
     // Flags I should compress if I have too many
     bool is_cached;  // If the host has been cached,
@@ -34,15 +35,16 @@ struct host {
     bool is_waiting; // This host has a non-blocking socket
                     // that's waiting to call send/recv again
 };
-static pthread_mutex_t cache_lock[MAX_HOST_CACHES] = {
-    PTHREAD_MUTEX_INITIALIZER};
 
-static struct host *host_cache[MAX_HOST_CACHES][MAX_HOSTS_PER_CACHE] = {0};
+struct host_cache {
+    atomic_bool occupancy[MAX_HOSTS_PER_CACHE];
+    struct host *hosts[MAX_HOSTS_PER_CACHE];
+};
 
-static atomic_int host_id_counter = ATOMIC_VAR_INIT(0);
+static struct host_cache host_caches[MAX_HOST_CACHES] = {0};
 
 static int get_free_cache_spot(int cache_index);
-static void remove_host_at_cache_index(int cache_index, int host_index);
+static void uncache_host(int cache_index, int host_index);
 
 struct host *create_host(const char *ip, const uint16_t port)
 {
@@ -55,7 +57,6 @@ struct host *create_host(const char *ip, const uint16_t port)
     }
     // filling in the data of the host's ip.
     strcpy(host->address_string, ip);
-    host->id                 = atomic_fetch_add(&host_id_counter, 1);
     host->address.sin_family = AF_INET;
     host->address.sin_port   = htons(port);
 
@@ -63,9 +64,9 @@ struct host *create_host(const char *ip, const uint16_t port)
     return host;
 }
 
-void copy_host(struct host *dstHost, const struct host *srcHost)
+void copy_host(struct host *dst_host, const struct host *src_host)
 {
-    memcpy(dstHost, srcHost, sizeof(struct host));
+    memcpy(dst_host, src_host, sizeof(struct host));
 }
 
 void *get_host_custom_attr(struct host *host)
@@ -81,37 +82,31 @@ bool is_cached(const struct host *host)
 {
     return host->is_cached;
 }
-static int get_free_cache_spot(int cacheIndex)
+
+// TODO: Check atomic flags!!
+static int get_free_cache_spot(int cache_index)
 {
     for (int i = 0; i < MAX_HOSTS_PER_CACHE; i++) {
-        if (host_cache[cacheIndex][i] == NULL) {
+        bool expected = 0;
+        if (atomic_compare_exchange_strong(&(host_caches[cache_index].occupancy[i]), &expected, 1)) {
             return i;
         }
     }
     return -1;
-}
-static void remove_host_at_cache_index(int cacheIndex, int hostIndex)
-{
-    struct host *host = host_cache[cacheIndex][hostIndex];
-    if (host != NULL) {
-        host->is_cached                   = 0;
-        host_cache[cacheIndex][hostIndex] = NULL;
-    }
 }
 
 const struct sockaddr_in *get_host_addr(const struct host *host)
 {
     return &host->address;
 }
-void cache_host(struct host *host, int cacheIndex)
+int cache_host(struct host *host, int cache_index)
 {
-    pthread_mutex_lock(&cache_lock[cacheIndex]);
 
-    if (cacheIndex >= MAX_HOST_CACHES) {
+    if (cache_index >= MAX_HOST_CACHES) {
         fprintf(stderr, "\n%s", err_strings[STR_ERROR_HOST_CACHE_INDEX]);
         goto unlock;
     }
-    int spot = get_free_cache_spot(cacheIndex);
+    int spot = get_free_cache_spot(cache_index);
     if (spot != -1) {
         host_cache[cacheIndex][spot] = host;
         host->is_cached               = 1;
@@ -119,36 +114,34 @@ void cache_host(struct host *host, int cacheIndex)
     else {
         fprintf(stderr, "\nHost cache full, can't add host %s", get_ip(host));
     }
-unlock:
-    pthread_mutex_unlock(&cache_lock[cacheIndex]);
 }
 
+// Should return a host pointer for deletion etc......
 void uncache_host(struct host *host, int cacheIndex)
 {
-    pthread_mutex_lock(&cache_lock[cacheIndex]);
     for (int i = 0; i < MAX_HOSTS_PER_CACHE; i++) {
         if (host == get_host_from_cache(cacheIndex, i)) {
-            remove_host_at_cache_index(cacheIndex, i);
+            uncache_host(cacheIndex, i);
             break;
         }
     }
-    pthread_mutex_unlock(&cache_lock[cacheIndex]);
 }
 
 void clear_host_cache(int cacheIndex)
 {
-    pthread_mutex_lock(&cache_lock[cacheIndex]);
+    pthread_mutex_lock(&cache_occupancy[cacheIndex]);
     if (cacheIndex >= MAX_HOST_CACHES) {
         fprintf(stderr, "\n%s", err_strings[STR_ERROR_HOST_CACHE_INDEX]);
         goto unlock;
     }
     for (int i = 0; i < MAX_HOSTS_PER_CACHE; i++) {
-        remove_host_at_cache_index(cacheIndex, i);
+        uncache_host(cacheIndex, i);
     }
 unlock:
-    pthread_mutex_unlock(&cache_lock[cacheIndex]);
+    pthread_mutex_unlock(&cache_occupancy[cacheIndex]);
 }
-struct host *get_host_from_cache(int cacheIndex, int hostIndex)
+
+struct host *get_host_from_cache(int cache_index, int host_index)
 {
     return host_cache[cacheIndex][hostIndex];
 }
@@ -159,10 +152,6 @@ const char *get_ip(struct host *host)
 uint16_t get_port(const struct host *host)
 {
     return ntohs(host->address.sin_port);
-}
-int get_host_id(const struct host *host)
-{
-    return host->id;
 }
 
 void destroy_host(struct host **host)
@@ -211,12 +200,8 @@ int attempt_tls_handshake(struct host *host, SSL_CTX *ssl_context)
 
 void close_connections(struct host *host)
 {
-    host->is_listening = 0;
-}
-
-void set_communicating(struct host *host)
-{
-    host->is_listening = 1;
+    host->is_connected = 0;
+    close(host->associated_socket);
 }
 
 int bind_host_socket(struct host *host)
@@ -243,7 +228,7 @@ int set_host_non_blocking(struct host *host)
     return SUCCESS;
 }
 
-// Returns -1 on error.
+// Returns -1 on error or 0 on success
 int host_accept(struct host *dst_host,
                 const struct host *listening_host)
 {
@@ -254,25 +239,64 @@ int host_accept(struct host *dst_host,
     if (0 > sock) {
         return -1;
     }
-    return dst_host->associated_socket = sock;
+    dst_host->is_connected = 1;
+    dst_host->associated_socket = sock;
+    return 0;
 }
 
-bool is_communicating(const struct host *host)
+bool is_host_connected(const struct host *host)
+{
+    return host->is_connected;
+}
+
+
+// returns -1 on error and 0 on success
+int create_host_tcp_socket_nb(struct host *host)
+{
+    host->associated_socket = create_socket(SOCK_DEFAULT_TCP);
+    if (host->associated_socket < 0) {
+        return -1;
+    }
+    set_host_non_blocking(host);
+    return 0;
+}
+
+// returns 0 on success, nonzero on failure
+int host_start_listening_tcp(struct host *host)
+{
+    int er = 0;
+    if (0 >= host->associated_socket) {
+        er = create_host_tcp_socket_nb(host);
+        if (er) return ERROR;
+    }
+    if (FAILURE(bind_host_socket(host))) {
+        perror("Failed to bind listen socket.\n");
+        return ERROR;
+    }
+    if (FAILURE(listen(host->associated_socket, SOCK_BACKLOG))) {
+        fprintf(stderr,
+                "\nError: listen() failed with errno %d: %s\n",
+                errno,
+                strerror(errno));
+        return ERROR;
+    }
+    host->is_listening = 1;
+    return 0;
+}
+
+bool is_host_listening(const struct host *host)
 {
     return host->is_listening;
 }
-
-void set_socket(struct host *restrict host, socketfd_t sockfd)
+ssize_t unencrypted_host_tcp_recv(struct host *remotehost, char *out_buffer, size_t buffer_size)
 {
-    host->associated_socket = sockfd;
+    return recv(remotehost->associated_socket, out_buffer, buffer_size, 0);
 }
-
-socketfd_t get_socket(const struct host *host)
+extern ssize_t encrypted_host_tcp_recv(struct host *remotehost,
+                                       char *out_buffer,
+                                       size_t buffer_size)
 {
-    return host->associated_socket;
-}
-
-SSL *get_host_ssl(const struct host *restrict host)
-{
-    return host->ssl;
+    return SSL_read(remotehost->ssl,
+                    out_buffer,
+                    buffer_size);
 }

@@ -58,9 +58,10 @@ int init_socket_poller(struct socket_epoller *epoller)
     int epoll_fd = epoll_create1(0); // Create epoll instance
     if (epoll_fd == -1) {
         perror("epoll_create1");
+        return -1;
     }
     epoller->epoll_fd = epoll_fd;
-    return epoll_fd;
+    return 0;
 }
 
 void destroy_socket_poller(struct socket_epoller *epoller)
@@ -68,7 +69,7 @@ void destroy_socket_poller(struct socket_epoller *epoller)
     close(epoller->epoll_fd);
 }
 
-int add_socket_to_epoll(struct host *host, struct socket_epoller *epoller)
+int add_host_socket_to_epoll(struct host *host, struct socket_epoller *epoller)
 {
     // Add listening socket to epoll
     struct epoll_event event;
