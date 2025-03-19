@@ -18,7 +18,7 @@ typedef ssize_t (*packet_sender_t)(struct packet_sending_args *);
 static inline ssize_t send_tcp_unencrypted(struct packet_sending_args *args);
 static inline ssize_t send_tcp_encrypted(struct packet_sending_args *args);
 static int wait_for_ready(int sockfd);
-static packet_sender_t send_variants[PACKET_SENDER_COUNT] = {
+static packet_sender_t tcp_send_functions[PACKET_SENDER_COUNT] = {
     send_tcp_unencrypted,
     send_tcp_encrypted};
 
@@ -31,46 +31,29 @@ int send_data_udp(const char *data,
                   const ssize_t datasize,
                   struct host *remotehost)
 {
-    debug_print("Seding UDP packet...\n");
-    socketfd_t sockfd = get_socket(remotehost);
-    const struct sockaddr *remote_address =
-        (const struct sockaddr *)get_host_addr(remotehost);
-    sendto(sockfd,
-           data,
-           datasize,
-           MSG_CONFIRM,
-           remote_address,
-           sizeof(*remote_address));
+    //debug_print("Seding UDP packet...\n");
+    //socketfd_t sockfd = get_socket(remotehost);
+    //const struct sockaddr *remote_address =
+    //    (const struct sockaddr *)get_host_addr(remotehost);
+    //sendto(sockfd,
+    //       data,
+    //       datasize,
+    //       MSG_CONFIRM,
+    //       remote_address,
+    //       sizeof(*remote_address));
 
-    return SUCCESS;
+    return -1;
 }
 
 static inline ssize_t send_tcp_unencrypted(struct packet_sending_args *args)
 {
-    return send(get_socket(args->remotehost),
-                args->buffer,
-                args->bytesToProcess,
-                0);
+    return send_to_host_tcp_unencrypted(args->remotehost, args->buffer, args->bytesToProcess);
 }
 static inline ssize_t send_tcp_encrypted(struct packet_sending_args *args)
 {
-    return SSL_write(get_host_ssl(args->remotehost),
-                     args->buffer,
-                     args->bytesToProcess);
+    return send_to_host_tcp_encrypted(args->remotehost, args->buffer, args->bytesToProcess);
 }
-static int wait_for_ready(int sockfd)
-{
-    fd_set writefds;
-    FD_ZERO(&writefds);
-    FD_SET(sockfd, &writefds);
 
-    int select_status = select(sockfd + 1, NULL, &writefds, NULL, NULL);
-    if (select_status < 0) {
-        perror("Select error");
-        return -1;
-    }
-    return select_status > 0;
-}
 
 int send_data_tcp(const char *data,
                   const size_t datasize,
@@ -81,26 +64,25 @@ int send_data_tcp(const char *data,
     int    status           = 0;
     struct packet_sending_args send_args = {remotehost, data, datasize};
     while (total_bytes_sent < datasize) {
-        // A switch to send packets in different ways
-        status = send_variants[packet_sender_type](&send_args);
-        if (status == -1) {
+        status = tcp_send_functions[packet_sender_type](&send_args);
+        if (0 == status) {
+            fprintf(stderr, "Socket is closed, couldn't send data\n");
+            close_connection(remotehost);
+            return SUCCESS;
+        }
+        else if (-1 == status) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                if (wait_for_ready(get_socket(remotehost)) < 0) {
+                if (host_socket_select(remotehost) < 0) {
                     perror("Select error\n");
-                    close_connections(remotehost);
+                    close_connection(remotehost);
                     return ERROR;
                 }
                 continue;
             }
 
             perror("Failed to send TCP message\n");
-            close_connections(remotehost);
+            close_connection(remotehost);
             return ERROR;
-        }
-        if (status == 0) {
-            fprintf(stderr, "Socket is closed, couldn't send data\n");
-            close_connections(remotehost);
-            return SUCCESS;
         }
         total_bytes_sent += status;
     }
@@ -122,10 +104,9 @@ int send_data_tcp_and_recv(const char *data,
 
     send_data_tcp(data, datasize, remotehost);
 
-    recv_args = (struct packet_reception_args *)
-        calloc(1, sizeof(struct packet_reception_args));
-    if (recv_args == NULL) {
-        close_connections(remotehost);
+    recv_args = calloc(1, sizeof(struct packet_reception_args));
+    if (!recv_args) {
+        close_connection(remotehost);
         return SEND_ERROR;
     }
 
@@ -134,8 +115,8 @@ int send_data_tcp_and_recv(const char *data,
     recv_args->localhost      = NULL;
     recv_args->packet_handler = packet_handler;
     recv_args->bytesToProcess = 0;
-    recv_args->buffer = (char *)calloc(PACKET_BUFFER_SIZE * 2, sizeof(char));
-    if (recv_args->buffer == NULL) {
+    recv_args->buffer = calloc(PACKET_BUFFER_SIZE * 2, sizeof(char));
+    if (!recv_args->buffer) {
         free(recv_args);
         return SEND_ERROR;
     }
@@ -157,21 +138,19 @@ static ssize_t send_data_tcp_nb(const char *data,
     debug_print("Sending TCP packet...\n");
     ssize_t status = 0;
     struct packet_sending_args send_args = {remotehost, data, datasize};
-    // A switch to send packets in different ways
-    status = send_variants[packet_sender_type](&send_args);
-
-    if (status == -1) {
+    status = tcp_send_functions[packet_sender_type](&send_args);
+    if (0 == status) {
+        fprintf(stderr, "Socket is closed, couldn't send data\n");
+        close_connection(remotehost);
+        return SUCCESS;
+    }
+    else if (-1 == status) {
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
             return SEND_TRYAGAIN;
         }
         perror("Failed to send TCP message\n");
-        close_connections(remotehost);
+        close_connection(remotehost);
         return SEND_ERROR;
-    }
-    if (status == 0) {
-        fprintf(stderr, "Socket is closed, couldn't send data\n");
-        close_connections(remotehost);
-        return SUCCESS;
     }
     return status;
 }
@@ -180,28 +159,26 @@ int multicast_tcp(const char *data, const ssize_t datasize, int cache_index)
 {
     debug_print("Multicasting to cache number %d...", cache_index);
     struct host *remotehost               = NULL;
-    bool try_again                        = 1;
-    ssize_t current_status                = 0;
+    bool unreached_hosts_remain           = 1;
     ssize_t statuses[MAX_HOSTS_PER_CACHE] = {0};
 
     for (int i = 0; i < MAX_HOSTS_PER_CACHE; i++) {
         statuses[i] = SEND_TRYAGAIN;
     }
-    while (try_again == true) {
-        try_again = false;
+    while (unreached_hosts_remain) {
+        unreached_hosts_remain = 0;
         for (int i = 0; i < MAX_HOSTS_PER_CACHE; i++) {
             remotehost = get_host_from_cache(cache_index, i);
             if (!remotehost) {
                 continue;
             }
-            current_status = statuses[i];
-            if ((current_status < datasize && current_status > 0) ||
-                current_status == SEND_TRYAGAIN) {
-                current_status = send_data_tcp_nb(data, datasize, remotehost);
-                try_again = (current_status < datasize
-                             && current_status > 0
-                             && try_again == 0)
-                            || current_status == SEND_TRYAGAIN;
+            if ((statuses[i] < datasize && statuses[i] > 0)
+                || statuses[i] == SEND_TRYAGAIN) {
+                statuses[i] = send_data_tcp_nb(data, datasize, remotehost);
+                unreached_hosts_remain = (statuses[i] < datasize
+                                          && statuses[i] > 0
+                                          && !unreached_hosts_remain)
+                                          || statuses[i] == SEND_TRYAGAIN;
             }
         }
     }

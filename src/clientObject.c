@@ -21,22 +21,24 @@ struct host {
     struct sockaddr_in address; // The socket it contains (IP and port)
     socklen_t address_len;
     SSL *ssl;                   // Not NULL if we're connected over SSL
-    void *custom_attr;      // Library user can store whatever in here
+    void *custom_attr;          // Library user can store whatever in here
     socketfd_t associated_socket; // Socket that gets associated with this host.
-                                 // This allows the socket from a connection
-                                 // to be saved and reused!
+                                  // This allows the socket from a connection
+                                  // to be saved and reused!
     bool is_listening;  // Is this host supposed to be currently listening on a thread
     bool is_connected;  // Is a part of an ongoing connection
 
-    // Flags I should compress if I have too many
     bool is_cached;  // If the host has been cached,
-                    // it should not be freed until
-                    // the cache is destroyed.
+                     // it should not be freed
+                     // until it is not cached
+
     bool is_waiting; // This host has a non-blocking socket
-                    // that's waiting to call send/recv again
+                     // that's waiting to call send/recv again
 };
 
 struct host_cache {
+    pthread_mutex_t lock;
+    // We do not lock the entire host cache
     atomic_bool occupancy[MAX_HOSTS_PER_CACHE];
     struct host *hosts[MAX_HOSTS_PER_CACHE];
 };
@@ -44,7 +46,7 @@ struct host_cache {
 static struct host_cache host_caches[MAX_HOST_CACHES] = {0};
 
 static int get_free_cache_spot(int cache_index);
-static void uncache_host(int cache_index, int host_index);
+static int host_socket_select(struct host *host);
 
 struct host *create_host(const char *ip, const uint16_t port)
 {
@@ -117,12 +119,12 @@ int cache_host(struct host *host, int cache_index)
 }
 
 // Should return a host pointer for deletion etc......
-void uncache_host(struct host *host, int cacheIndex)
+void uncache_host(struct host *host, int cache_index)
 {
     for (int i = 0; i < MAX_HOSTS_PER_CACHE; i++) {
-        if (host == get_host_from_cache(cacheIndex, i)) {
-            uncache_host(cacheIndex, i);
-            break;
+        if (host == host_caches[cache_index].hosts[i]) {
+            host_caches[cache_index].hosts[i] = NULL;
+            atomic_exchange(&host_caches[cache_index].occupancy[i], 0);
         }
     }
 }
@@ -198,7 +200,7 @@ int attempt_tls_handshake(struct host *host, SSL_CTX *ssl_context)
     return 0;
 }
 
-void close_connections(struct host *host)
+void close_connection(struct host *host)
 {
     host->is_connected = 0;
     close(host->associated_socket);
@@ -292,11 +294,46 @@ ssize_t unencrypted_host_tcp_recv(struct host *remotehost, char *out_buffer, siz
 {
     return recv(remotehost->associated_socket, out_buffer, buffer_size, 0);
 }
-extern ssize_t encrypted_host_tcp_recv(struct host *remotehost,
+ssize_t encrypted_host_tcp_recv(struct host *remotehost,
                                        char *out_buffer,
                                        size_t buffer_size)
 {
-    return SSL_read(remotehost->ssl,
-                    out_buffer,
-                    buffer_size);
+    return (ssize_t)SSL_read(remotehost->ssl,
+                             out_buffer,
+                             buffer_size);
+}
+ssize_t send_to_host_tcp_unencrypted(const struct host *remotehost,
+                                     const char *data,
+                                     ssize_t data_size)
+{
+    return (ssize_t)send(remotehost->associated_socket,
+                         data,
+                         data_size,
+                         0);
+}
+ssize_t send_to_host_tcp_encrypted(const struct host *remotehost,
+                                   const char *data,
+                                   ssize_t data_size)
+{
+    return SSL_write(remotehost->ssl,
+                     data,
+                     data_size);
+}
+
+// returns -1 on error, 1 on ready socket, 0 on socket not ready
+static int host_socket_select(struct host *host)
+{
+    fd_set writefds;
+    FD_ZERO(&writefds);
+    FD_SET(host->associated_socket, &writefds);
+    int select_status = select(host->associated_socket + 1,
+                               NULL,
+                               &writefds,
+                               NULL,
+                               NULL);
+    if (0 > select_status) {
+        perror("Select error");
+        return -1;
+    }
+    return select_status > 0;
 }

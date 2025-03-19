@@ -237,7 +237,7 @@ static void tcp_accept_loop(struct host *localhost,
                             struct socket_epoller *epoller,
                             void (*packet_handler)(char *, ssize_t, struct host *))
 {
-    while (is_host_connected(localhost)) {
+    while (is_host_listening(localhost)) {
         int number_of_sockets_ready = epoll_wait(epoller->epoll_fd,
                                                  epoller->events,
                                                  MAX_EPOLL_EVENTS,
@@ -322,6 +322,8 @@ void receive_tcp_packets(struct packet_reception_args *args)
     // TODO: we could actually handle multiple
     // sockets per thread instead of a fresh
     // thread for each socket!
+    // Every host gets it's own epoller for it's
+    // file descriptor
     struct socket_epoller remotehost_poller = {0};
 
     er = init_socket_poller(&remotehost_poller);
@@ -331,19 +333,21 @@ void receive_tcp_packets(struct packet_reception_args *args)
     if (er) goto cleanup_epoller;
 
     while (is_host_connected(args->remotehost)) {
-        int n = epoll_wait(remotehost_poller.epoll_fd, remotehost_poller.events, MAX_EPOLL_EVENTS, -1);
+        int n = epoll_wait(remotehost_poller.epoll_fd,
+                           remotehost_poller.events,
+                           MAX_EPOLL_EVENTS,
+                           -1);
         if (-1 == n) {
             perror("epoll_wait");
-            close_connections(args->remotehost);
+            close_connection(args->remotehost);
         }
         for (int i = 0; i < n; i++) {
-            //struct host *host_with_socket_activity = (struct host *)remotehost_poller.events[i].data.ptr;
             num_bytes = recv_variants[packet_receiver_type](args);
             if (num_bytes >= 0) {
                 args->packet_handler(args->buffer, num_bytes, args->remotehost);
                 if (num_bytes == 0) {
                     fprintf(stderr, "Connection shutdown triggered by recv()...\n");
-                    close_connections(args->remotehost);
+                    close_connection(args->remotehost);
                 }
             }
             else {
@@ -351,7 +355,7 @@ void receive_tcp_packets(struct packet_reception_args *args)
                     continue;
                 }
                 fprintf(stderr, "\nSocket error, closing connection...\n");
-                close_connections(args->remotehost);
+                close_connection(args->remotehost);
             }
         }
     }
@@ -368,9 +372,11 @@ cleanup_packet_rec_args:
  */
 static void destroy_packet_reception_args(struct packet_reception_args **args)
 {
-    if (*args == NULL) {
+    if (!(*args)) {
         return;
     }
+    // We ONLY destroy the remote host
+    // because the local host keeps listening
     destroy_host(&(*args)->remotehost);
     free((*args)->buffer);
     free(*args);

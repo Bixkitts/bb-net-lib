@@ -59,7 +59,7 @@ void clear_host_cache (int cacheIndex);
 // IP string is always length 16
 extern const char *get_ip            (struct host* host);
 extern uint16_t    get_port          (struct host* host);
-extern void        close_connections (struct host* host);
+extern void        close_connection (struct host* host);
 
 __END_DECLS
 
