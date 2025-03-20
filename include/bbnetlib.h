@@ -39,7 +39,7 @@ extern int listen_for_tcp  (struct host* localhost,
 // createHost returns NULL on failure.
 extern struct host*  create_host        (char *ip, 
                                 uint16_t port);       
-extern void  destroy_host       (struct host *host);
+extern void  release_host       (struct host *host);
 // struct host custom attributes can be used to load and store
 // a custom pointer in a struct host object
 extern void *get_host_custom_attr (struct host* host); 

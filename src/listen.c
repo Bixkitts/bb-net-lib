@@ -194,7 +194,7 @@ static void packet_handle_in_new_thread(struct host *localhost,
                                                        remotehost,
                                                        packet_handler);
     if (!reception_args) {
-        destroy_host(&remotehost);
+        release_host(&remotehost);
         return;
     }
     add_task_to_thread_pool(tcp_thread_pool,
@@ -217,13 +217,13 @@ static void proc_epolled_tcp_socks(struct host *localhost,
         }
         er = try_accept_connection(localhost, remotehost);
         if (er) {
-            destroy_host(&remotehost);
+            release_host(&remotehost);
             continue;
         }
         if (packet_receiver_type == PACKET_RECEIVER_TLS) {
             if (FAILURE(attempt_tls_handshake(remotehost, ssl_context))) {
                 perror("\nError: TLS Handshake failed.\n");
-                destroy_host(&remotehost);
+                release_host(&remotehost);
                 continue;
             }
         }
@@ -290,7 +290,7 @@ cleanup_all:
 cleanup_ssl:
     SSL_CTX_free(ssl_context);
 cleanup_host:
-    destroy_host(&localhost);
+    release_host(&localhost);
 cleanup_thread_pool:
     destroy_thread_pool(&tcp_thread_pool);
     return er;
@@ -377,7 +377,7 @@ static void destroy_packet_reception_args(struct packet_reception_args **args)
     }
     // We ONLY destroy the remote host
     // because the local host keeps listening
-    destroy_host(&(*args)->remotehost);
+    release_host(&(*args)->remotehost);
     free((*args)->buffer);
     free(*args);
     *args = NULL;

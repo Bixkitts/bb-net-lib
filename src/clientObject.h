@@ -20,7 +20,7 @@ struct host;
 struct host_cache;
 
 BBNETAPI struct host *create_host(const char *ip, const uint16_t port);
-void destroy_host(struct host **host);
+void release_host(struct host **host);
 BBNETAPI const char *
 get_ip(struct host *host); // Returns a string representation of the IP address
                            // in the client
