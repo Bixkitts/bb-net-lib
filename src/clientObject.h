@@ -9,6 +9,7 @@
 
 #include "defines.h"
 #include "socketfd.h"
+#include "socketsNetLib.h"
 
 #define MAX_HOST_CACHES     16
 #define MAX_HOSTS_PER_CACHE 1024
@@ -17,7 +18,6 @@
 // Opaque struct.
 // Look in clientObject.c for implementation.
 struct host;
-struct host_cache;
 
 BBNETAPI struct host *create_host(const char *ip, const uint16_t port);
 void release_host(struct host **host);
@@ -45,10 +45,10 @@ socketfd_t host_accept(struct host *dst_host,
 BBNETAPI void
 close_connection(struct host *host); // Unsets the bListen boolean
                                       //
-ssize_t send_to_host_tcp_encrypted(const struct host *remotehost,
+ssize_t send_tcp_encrypted_internal(const struct host *remotehost,
                                           const char *data,
                                           ssize_t data_size);
-ssize_t send_to_host_tcp_unencrypted(const struct host *remotehost,
+ssize_t send_tcp_unencrypted_internal(const struct host *remotehost,
                                             const char *data,
                                             ssize_t data_size);
 bool is_host_connected(const struct host *host);
@@ -57,13 +57,22 @@ int host_start_listening_tcp(struct host *host);
 bool is_host_listening(const struct host *host);
 ssize_t unencrypted_host_tcp_recv(struct host *remotehost, char *out_buffer, size_t buffer_size);
 ssize_t encrypted_host_tcp_recv(struct host *remotehost, char *out_buffer, size_t buffer_size);
+int host_socket_select(struct host *host);
+int connect_to_tcp_internal(struct host *remotehost);
+int multicast_tcp_internal(const char *data,
+                           const ssize_t datasize,
+                           int cache_index,
+                           ssize_t (*send_func)(const char *data,
+                                                const ssize_t datasize,
+                                                struct host *remotehost));
+int add_host_socket_to_epoll(struct host *host, struct socket_epoller *epoller);
 
 // struct host Caching functions
 // --------------------------------------------
 // returns -1 on failure, 0 on success
 BBNETAPI int cache_host(struct host *host, int cache_index);
 BBNETAPI void uncache_host(struct host *host, int cache_index);
-BBNETAPI void clear_host_cache(int cacheIndex);
+BBNETAPI void clear_host_cache(int cache_index);
 
 // --------------------------------------------
 #endif

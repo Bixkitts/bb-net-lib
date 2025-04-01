@@ -128,7 +128,6 @@ static int try_accept_connection(const struct host *localhost,
     if (set_host_non_blocking(remotehost) == -1) {
         return RECV_ERROR;
     }
-    set_communicating(remotehost);
     return 0;
 }
 
@@ -277,8 +276,10 @@ int listen_for_tcp(struct host *localhost,
     if (er) goto cleanup_host;
 
     er = init_socket_poller(&epoller);
-    if (er) goto cleanup_ssl;;
-    add_host_socket_to_epoll(localhost, &epoller);
+    if (er) goto cleanup_ssl;
+
+    er = add_host_socket_to_epoll(localhost, &epoller);
+    if (er) goto cleanup_all;
 
     er = host_start_listening_tcp(localhost);
     if (er) goto cleanup_all;

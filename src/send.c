@@ -1,4 +1,5 @@
 #include <arpa/inet.h>
+#include <assert.h>
 #include <errno.h>
 #include <netdb.h>
 #include <stdio.h>
@@ -10,14 +11,12 @@
 #include "clientObject.h"
 #include "listen.h"
 #include "send.h"
-#include "socketsNetLib.h"
 
 enum packet_sender_type packet_sender_type = PACKET_SENDER_TCP;
 
 typedef ssize_t (*packet_sender_t)(struct packet_sending_args *);
 static inline ssize_t send_tcp_unencrypted(struct packet_sending_args *args);
 static inline ssize_t send_tcp_encrypted(struct packet_sending_args *args);
-static int wait_for_ready(int sockfd);
 static packet_sender_t tcp_send_functions[PACKET_SENDER_COUNT] = {
     send_tcp_unencrypted,
     send_tcp_encrypted};
@@ -47,14 +46,23 @@ int send_data_udp(const char *data,
 
 static inline ssize_t send_tcp_unencrypted(struct packet_sending_args *args)
 {
-    return send_to_host_tcp_unencrypted(args->remotehost, args->buffer, args->bytesToProcess);
+    return send_tcp_unencrypted_internal(args->remotehost,
+                                         args->buffer,
+                                         args->bytes_to_process);
 }
 static inline ssize_t send_tcp_encrypted(struct packet_sending_args *args)
 {
-    return send_to_host_tcp_encrypted(args->remotehost, args->buffer, args->bytesToProcess);
+    return send_tcp_encrypted_internal(args->remotehost,
+                                       args->buffer,
+                                       args->bytes_to_process);
 }
 
 
+/*
+ * Virtually identical to send_data_tcp_nb,
+ * but blocks by running in a loop until
+ * transfer is complete
+ */
 int send_data_tcp(const char *data,
                   const size_t datasize,
                   struct host *remotehost)
@@ -130,10 +138,16 @@ int send_data_tcp_and_recv(const char *data,
  * sent, or -1 for an error OR -2
  * Call this function until it errors
  * or sends datasize bytes
+ * --------------------------
+ *  Virtually identical to send_data_tcp(), but
+ *  returns instead of looping/blocking/selecting.
+ *  This is static because it's only used
+ *  by us internally for a round-robin multicast
+ *  in multicast_tcp()
  */
-static ssize_t send_data_tcp_nb(const char *data,
-                                const ssize_t datasize,
-                                struct host *remotehost)
+ssize_t send_data_tcp_nb(const char *data,
+                         const ssize_t datasize,
+                         struct host *remotehost)
 {
     debug_print("Sending TCP packet...\n");
     ssize_t status = 0;
@@ -157,45 +171,16 @@ static ssize_t send_data_tcp_nb(const char *data,
 
 int multicast_tcp(const char *data, const ssize_t datasize, int cache_index)
 {
+    assert(data && cache_index < MAX_HOST_CACHES);
     debug_print("Multicasting to cache number %d...", cache_index);
-    struct host *remotehost               = NULL;
-    bool unreached_hosts_remain           = 1;
-    ssize_t statuses[MAX_HOSTS_PER_CACHE] = {0};
-
-    for (int i = 0; i < MAX_HOSTS_PER_CACHE; i++) {
-        statuses[i] = SEND_TRYAGAIN;
-    }
-    while (unreached_hosts_remain) {
-        unreached_hosts_remain = 0;
-        for (int i = 0; i < MAX_HOSTS_PER_CACHE; i++) {
-            remotehost = get_host_from_cache(cache_index, i);
-            if (!remotehost) {
-                continue;
-            }
-            if ((statuses[i] < datasize && statuses[i] > 0)
-                || statuses[i] == SEND_TRYAGAIN) {
-                statuses[i] = send_data_tcp_nb(data, datasize, remotehost);
-                unreached_hosts_remain = (statuses[i] < datasize
-                                          && statuses[i] > 0
-                                          && !unreached_hosts_remain)
-                                          || statuses[i] == SEND_TRYAGAIN;
-            }
-        }
-    }
-    return SUCCESS;
+    int res = multicast_tcp_internal(data,
+                                     datasize,
+                                     cache_index,
+                                     &send_data_tcp_nb);
+    return res;
 }
 
 int connect_to_tcp(struct host *remotehost)
 {
-    const socketfd_t sockfd = create_socket(SOCK_DEFAULT_TCP);
-    const struct sockaddr *remote_address =
-        (const struct sockaddr *)get_host_addr(remotehost);
-    const socklen_t size_of_address = sizeof(*remote_address);
-    if (FAILURE(connect(sockfd, remote_address, size_of_address))) {
-        close(sockfd);
-        perror("Connect failed\n");
-        return ERROR;
-    }
-    set_socket(remotehost, sockfd);
-    return SUCCESS;
+    return connect_to_tcp_internal(remotehost);
 }

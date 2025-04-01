@@ -31,7 +31,7 @@ void close_socket(socketfd_t sockfd)
  */
 int set_socket_timeout(socketfd_t sockfd, long secs)
 {
-    struct timeval timeout = {};
+    struct timeval timeout = {0};
     timeout.tv_sec         = secs; // 5 seconds
     timeout.tv_usec        = 0;    // 0 microseconds
     if (FAILURE(setsockopt(sockfd,
@@ -67,18 +67,4 @@ int init_socket_poller(struct socket_epoller *epoller)
 void destroy_socket_poller(struct socket_epoller *epoller)
 {
     close(epoller->epoll_fd);
-}
-
-int add_host_socket_to_epoll(struct host *host, struct socket_epoller *epoller)
-{
-    // Add listening socket to epoll
-    struct epoll_event event;
-    event.data.ptr = host;
-    event.events = EPOLLIN | EPOLLET; // Wait for incoming connections, edge-triggered
-
-    if (epoll_ctl(epoller->epoll_fd, EPOLL_CTL_ADD, get_socket(host), &event) == -1) {
-        perror("epoll_ctl");
-        return -1;
-    }
-    return 0;
 }
