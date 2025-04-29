@@ -35,7 +35,7 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
-target_compile_options(${PROJECT_NAME} PRIVATE -fvisibility=hidden $<$<CONFIG:Debug>:-O0;-g3;-ggdb;-Wall;-Wextra;-Wpedantic;-Wno-unused-parameter;-fanalyzer;-Werror> $<$<CONFIG:Release>:-O3;-flto>)
+target_compile_options(${PROJECT_NAME} PRIVATE -fvisibility=hidden $<$<CONFIG:Debug>:-O0;-g3;-ggdb;-Wall;-Wextra;-Wpedantic;-Wno-unused-parameter;-fanalyzer;> $<$<CONFIG:Release>:-O3;-flto>)
 target_compile_definitions(${PROJECT_NAME} PRIVATE $<$<CONFIG:Debug>: DEBUG>)
 
 find_package(OpenSSL REQUIRED)

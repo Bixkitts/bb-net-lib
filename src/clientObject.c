@@ -17,12 +17,6 @@
 #include "clientObject.h"
 #include "socketsNetLib.h"
 
-enum cache_slot_occupancy {
-    OCCUPANCY_FREE,
-    OCCUPANCY_TAKEN_NOT_VALID,
-    OCCUPANCY_TAKEN_AND_VALID
-};
-
 struct host {
     char address_string[INET_ADDRSTRLEN];
     struct sockaddr_in address; // The socket it contains (IP and port)
@@ -51,6 +45,7 @@ static struct host_cache host_caches[MAX_HOST_CACHES] = {0};
 
 static int get_free_cache_spot(const struct host_cache *cache);
 static void uncache_host_internal(struct host_cache *cache, int host_index);
+static int bind_host_socket(struct host *host);
 
 struct host *create_host(const char *ip, const uint16_t port)
 {
@@ -117,7 +112,7 @@ const struct sockaddr_in *get_host_addr(const struct host *host)
 static bool acquire_host(struct host *host)
 {
     assert(host);
-    int ref = atomic_fetch_add(&host->reference_count,1);
+    int ref = atomic_fetch_add(&host->reference_count, 1);
     if (ref < 1) return 0; // Host has been deleted, failed to acquire despite having a pointer
     return 1;
 }
@@ -256,15 +251,19 @@ void close_connection(struct host *host)
     close(host->socket);
 }
 
-int bind_host_socket(struct host *host)
+static int bind_host_socket(struct host *host)
 {
     assert(host);
-    struct sockaddr *bound_address = (struct sockaddr *)&host->address;
+    assert(host->socket > 0);
+    const struct sockaddr *bound_address =
+        (struct sockaddr *)&host->address;
     if (FAILURE(bind(host->socket,
                      bound_address,
                      sizeof(host->address)))) {
         perror("Failed to bind socket!\n");
-        close(host->socket);
+        if(FAILURE(close((int)host->socket))) {
+            // TODO: Handle close() errors
+        }
         return ERROR;
     }
     return SUCCESS;
@@ -275,10 +274,10 @@ int set_host_non_blocking(struct host *host)
     assert(host);
     const socketfd_t target_socket = host->socket;
     int flags = fcntl(target_socket, F_GETFL, 0);
-    if (flags == -1) {
+    if (-1 == flags) {
         return ERROR;
     }
-    if (fcntl(target_socket, F_SETFL, flags | O_NONBLOCK) == -1) {
+    if (-1 == fcntl(target_socket, F_SETFL, flags | O_NONBLOCK)) {
         perror("Error setting socket to non-blocking mode");
         return ERROR;
     }
@@ -350,9 +349,12 @@ bool is_host_listening(const struct host *host)
     assert(host);
     return host->is_listening;
 }
-ssize_t unencrypted_host_tcp_recv(struct host *remotehost, char *out_buffer, size_t buffer_size)
+ssize_t unencrypted_host_tcp_recv(struct host *remotehost,
+                                  char *out_buffer,
+                                  size_t buffer_size)
 {
     assert(remotehost && out_buffer && (buffer_size > 0));
+    memset(out_buffer, 0, buffer_size);
     return recv(remotehost->socket, out_buffer, buffer_size, 0);
 }
 ssize_t encrypted_host_tcp_recv(struct host *remotehost,
@@ -360,6 +362,7 @@ ssize_t encrypted_host_tcp_recv(struct host *remotehost,
                                        size_t buffer_size)
 {
     assert(remotehost && out_buffer && (buffer_size > 0));
+    memset(out_buffer, 0, buffer_size);
     return (ssize_t)SSL_read(remotehost->ssl,
                              out_buffer,
                              buffer_size);
@@ -394,6 +397,7 @@ int multicast_tcp_internal(const char *data,
                                                 const ssize_t datasize,
                                                 struct host *remotehost))
 {
+    assert(data);
     struct host_cache *cache = &host_caches[cache_index];
     ssize_t statuses[MAX_HOSTS_PER_CACHE] = {0};
     const int send_tryagain = -2;
@@ -442,6 +446,7 @@ int host_socket_select(struct host *host)
     }
     return select_status > 0;
 }
+
 int add_host_socket_to_epoll(struct host *host,
                              struct socket_epoller *epoller)
 {

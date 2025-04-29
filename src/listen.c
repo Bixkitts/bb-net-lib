@@ -316,7 +316,7 @@ recv_tcp_encrypted(struct packet_reception_args *restrict args)
  * and is responsible for cleaning up args */
 void receive_tcp_packets(struct packet_reception_args *args)
 {
-    // TODO: implement
+    assert(args);
     debug_print("Receiving TCP packets in a thread...\n");
     ssize_t num_bytes = 0;
     int er = 0;
@@ -368,11 +368,10 @@ cleanup_packet_rec_args:
     return;
 }
 
-/*
- * Precondition that args pointer and members not NULL
- */
 static void destroy_packet_reception_args(struct packet_reception_args **args)
 {
+    assert(args);
+    assert(*args);
     if (!(*args)) {
         return;
     }
