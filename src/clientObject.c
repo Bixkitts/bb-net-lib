@@ -74,10 +74,7 @@ void copy_host(struct host *dst_host, const struct host *src_host)
 
 void *get_host_custom_attr(struct host *host)
 {
-    // We have no reason to be fetching a NULL custom attribute,
-    // this is a programming mistake by the client.
-    // Call set_host_custom_attr() before get_host_custom_attr().
-    assert(host && host->custom_attr);
+    assert(host);
     return host->custom_attr;
 }
 
