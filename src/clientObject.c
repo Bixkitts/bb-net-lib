@@ -204,7 +204,7 @@ void release_host(struct host **host)
     }
     int refs = atomic_fetch_sub(&(*host)->reference_count, 1);
     if (refs > 1) {
-        return;
+        goto clear_pointer;
     }
     if ((*host)->ssl) {
         int ssl_shutdown = 0;
@@ -218,6 +218,7 @@ void release_host(struct host **host)
     }
     close((*host)->socket);
     free(*host);
+clear_pointer:
     *host = NULL;
 }
 
