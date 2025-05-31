@@ -15,6 +15,7 @@
 #include <unistd.h>
 
 #include "clientObject.h"
+#include "defines.h"
 #include "socketsNetLib.h"
 
 struct host {
@@ -46,6 +47,7 @@ static struct host_cache host_caches[MAX_HOST_CACHES] = {0};
 static int get_free_cache_spot(const struct host_cache *cache);
 static void uncache_host_internal(struct host_cache *cache, int host_index);
 static int bind_host_socket(struct host *host);
+static bool should_we_send_again(ssize_t send_status, ssize_t datasize);
 
 struct host *create_host(const char *ip, const uint16_t port)
 {
@@ -346,6 +348,7 @@ bool is_host_listening(const struct host *host)
     assert(host);
     return host->is_listening;
 }
+
 ssize_t unencrypted_host_tcp_recv(struct host *remotehost,
                                   char *out_buffer,
                                   size_t buffer_size)
@@ -354,25 +357,39 @@ ssize_t unencrypted_host_tcp_recv(struct host *remotehost,
     memset(out_buffer, 0, buffer_size);
     return recv(remotehost->socket, out_buffer, buffer_size, 0);
 }
+
+// Make sure to return -2 on EAGAIN/EWOULDBLOCK
 ssize_t encrypted_host_tcp_recv(struct host *remotehost,
                                        char *out_buffer,
                                        size_t buffer_size)
 {
     assert(remotehost && out_buffer && (buffer_size > 0));
     memset(out_buffer, 0, buffer_size);
-    return (ssize_t)SSL_read(remotehost->ssl,
-                             out_buffer,
-                             buffer_size);
+    const int res = (ssize_t)SSL_read(remotehost->ssl,
+                                      out_buffer,
+                                      buffer_size);
+    if (ERROR == res) {
+        if (errno == EAGAIN || errno == EWOULDBLOCK)
+            return NB_SOCK_TRY_AGAIN;
+    }
+    return res;
 }
+
+// Make sure to return -2 on EAGAIN/EWOULDBLOCK
 ssize_t send_tcp_unencrypted_internal(const struct host *remotehost,
                                       const char *data,
                                       ssize_t data_size)
 {
     assert(remotehost && data && (data_size > 0));
-    return (ssize_t)send(remotehost->socket,
-                         data,
-                         data_size,
-                         0);
+    const int res =  (ssize_t)send(remotehost->socket,
+                                   data,
+                                   data_size,
+                                   0);
+    if (ERROR == res) {
+        if (errno == EAGAIN || errno == EWOULDBLOCK)
+            return NB_SOCK_TRY_AGAIN;
+    }
+    return res;
 }
 ssize_t send_tcp_encrypted_internal(const struct host *remotehost,
                                     const char *data,
@@ -382,6 +399,13 @@ ssize_t send_tcp_encrypted_internal(const struct host *remotehost,
     return SSL_write(remotehost->ssl,
                      data,
                      data_size);
+}
+
+static bool should_we_send_again(ssize_t send_status, ssize_t datasize)
+{
+    return (send_status < datasize
+            && send_status > 0)
+            || (send_status == NB_SOCK_TRY_AGAIN);
 }
 
 // Returns the amount of hosts that
@@ -397,11 +421,10 @@ int multicast_tcp_internal(const char *data,
     assert(data);
     struct host_cache *cache = &host_caches[cache_index];
     ssize_t statuses[MAX_HOSTS_PER_CACHE] = {0};
-    const int send_tryagain = -2;
     bool unreached_hosts_remain = 1;
 
     for (int i = 0; i < MAX_HOSTS_PER_CACHE; i++) {
-        statuses[i] = send_tryagain;
+        statuses[i] = NB_SOCK_TRY_AGAIN;
     }
     pthread_rwlock_rdlock(&cache->rwlock);
     while(unreached_hosts_remain) {
@@ -410,14 +433,11 @@ int multicast_tcp_internal(const char *data,
                 continue;
             }
             struct host *remotehost = cache->hosts[i];
-            if ((statuses[i] < datasize && statuses[i] > 0)
-                || statuses[i] == send_tryagain) {
+            if (should_we_send_again(statuses[i], datasize)) {
                 statuses[i] = send_func(data, datasize, remotehost);
-                unreached_hosts_remain = (statuses[i] < datasize
-                                          && statuses[i] > 0
-                                          && !unreached_hosts_remain)
-                                          || statuses[i] == send_tryagain;
             }
+            unreached_hosts_remain = !unreached_hosts_remain
+                                     && should_we_send_again(statuses[i], datasize);
         }
     }
     pthread_rwlock_unlock(&cache->rwlock);

@@ -10,6 +10,7 @@
 #define ERROR              (-1)
 #define SUCCESS            0
 #define FAILURE(func)      ((func) < 0)
+#define NB_SOCK_TRY_AGAIN  -2
 
 #define BITS_PER_BYTE      8
 
