@@ -4,7 +4,7 @@
 
 static void *execute_task(void *arg);
 
-struct thread_pool *create_thread_pool()
+struct thread_pool *create_thread_pool(void)
 {
     struct thread_pool *pool = calloc(1, sizeof(struct thread_pool));
     if (!pool) {
@@ -24,7 +24,6 @@ struct thread_pool *create_thread_pool()
     return pool;
 }
 
-// Execute the task
 static void *execute_task(void *arg)
 {
     struct thread_pool *pool = (struct thread_pool *)arg;
@@ -80,7 +79,7 @@ void add_task_to_thread_pool(struct thread_pool *pool,
 // Shutdown the thread pool
 void destroy_thread_pool(struct thread_pool **pool)
 {
-    if ((*pool) == NULL) {
+    if (!(*pool)) {
         return;
     }
     pthread_mutex_lock(&(*pool)->lock);

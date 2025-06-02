@@ -52,7 +52,7 @@ int set_socket_timeout(socketfd_t sockfd, long secs)
     return 0;
 }
 
-int init_socket_poller(struct socket_epoller *epoller)
+int init_socket_epoller(struct socket_epoller *epoller)
 {
     memset(epoller, 0, sizeof(*epoller));
     int epoll_fd = epoll_create1(0); // Create epoll instance

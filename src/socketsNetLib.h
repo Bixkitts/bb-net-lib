@@ -27,7 +27,7 @@ extern int set_socket_timeout(socketfd_t sockfd, long secs);
 
 /* Initialise an epoller we can use later.
  * returns -1 on error */
-extern int init_socket_poller(struct socket_epoller *epoller);
+extern int init_socket_epoller(struct socket_epoller *epoller);
 
 /* Adds the socket associated with a host
  * to the epoll list in a socket_poller

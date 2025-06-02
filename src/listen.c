@@ -201,32 +201,32 @@ static void packet_handle_in_new_thread(struct host *localhost,
                             reception_args);
 }
 
-static void proc_epolled_tcp_socks(struct host *localhost,
-                                   int num_incoming_conn,
+static void proc_epolled_tcp_socks(int num_incoming_conn,
+                                   struct socket_epoller *epoller,
                                    void (*packet_handler)(char *, ssize_t, struct host *))
 {
     int er = 0;
     for (int i = 0; i < num_incoming_conn; i++) {
-        //struct host *host_with_socket_activity =
-        //    (struct host *)localhost_poller->events[i].data.ptr;
+        struct host *host_with_socket_activity =
+            (struct host *)epoller->events[i].data.ptr;
         struct host *remotehost = create_host("", 0000);
         if (!remotehost) {
             fprintf(stderr, "\nFatal error creating host.\n");
             continue;
         }
-        er = try_accept_connection(localhost, remotehost);
+        er = try_accept_connection(host_with_socket_activity, remotehost);
         if (er) {
             release_host(&remotehost);
             continue;
         }
         if (packet_receiver_type == PACKET_RECEIVER_TLS) {
             if (FAILURE(attempt_tls_handshake(remotehost, ssl_context))) {
-                perror("\nError: TLS Handshake failed.\n");
+                perror("TLS Handshake failed");
                 release_host(&remotehost);
                 continue;
             }
         }
-        packet_handle_in_new_thread(localhost,
+        packet_handle_in_new_thread(host_with_socket_activity,
                                     remotehost,
                                     packet_handler);
     }
@@ -245,8 +245,8 @@ static void tcp_accept_loop(struct host *localhost,
             perror("epoll_wait");
             break;
         }
-        proc_epolled_tcp_socks(localhost,
-                               number_of_sockets_ready,
+        proc_epolled_tcp_socks(number_of_sockets_ready,
+                               epoller,
                                packet_handler);
     }
 }
@@ -275,7 +275,7 @@ int listen_for_tcp(struct host *localhost,
     er = set_up_tls();
     if (er) goto cleanup_host;
 
-    er = init_socket_poller(&epoller);
+    er = init_socket_epoller(&epoller);
     if (er) goto cleanup_ssl;
 
     er = add_host_socket_to_epoll(localhost, &epoller);
@@ -318,7 +318,6 @@ void receive_tcp_packets(struct packet_reception_args *args)
 {
     assert(args);
     debug_print("Receiving TCP packets in a thread...\n");
-    ssize_t num_bytes = 0;
     int er = 0;
     // TODO: we could actually handle multiple
     // sockets per thread instead of a fresh
@@ -327,23 +326,23 @@ void receive_tcp_packets(struct packet_reception_args *args)
     // file descriptor
     struct socket_epoller remotehost_poller = {0};
 
-    er = init_socket_poller(&remotehost_poller);
+    er = init_socket_epoller(&remotehost_poller);
     if (er) goto cleanup_packet_rec_args;
     er = add_host_socket_to_epoll(args->remotehost,
                                   &remotehost_poller);
     if (er) goto cleanup_epoller;
 
     while (is_host_connected(args->remotehost)) {
-        int n = epoll_wait(remotehost_poller.epoll_fd,
-                           remotehost_poller.events,
-                           MAX_EPOLL_EVENTS,
-                           -1);
+        const int n = epoll_wait(remotehost_poller.epoll_fd,
+                                 remotehost_poller.events,
+                                 MAX_EPOLL_EVENTS,
+                                 -1);
         if (-1 == n) {
             perror("epoll_wait");
             close_connection(args->remotehost);
         }
         for (int i = 0; i < n; i++) {
-            num_bytes = recv_variants[packet_receiver_type](args);
+            const ssize_t num_bytes = recv_variants[packet_receiver_type](args);
             if (num_bytes >= 0) {
                 args->packet_handler(args->buffer, num_bytes, args->remotehost);
                 if (num_bytes == 0) {
