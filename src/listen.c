@@ -237,11 +237,12 @@ static void tcp_accept_loop(struct host *localhost,
                             void (*packet_handler)(char *, ssize_t, struct host *))
 {
     while (is_host_listening(localhost)) {
-        int number_of_sockets_ready = epoll_wait(epoller->epoll_fd,
-                                                 epoller->events,
-                                                 MAX_EPOLL_EVENTS,
-                                                 -1);
-        if (number_of_sockets_ready == -1) {
+        const int number_of_sockets_ready = epoll_wait(epoller->epoll_fd,
+                                                       epoller->events,
+                                                       MAX_EPOLL_EVENTS,
+                                                       -1);
+        if (-1 == number_of_sockets_ready) {
+            if (EINTR == errno) continue; // handle Ctrl+C interrupts
             perror("epoll_wait");
             break;
         }
@@ -338,6 +339,7 @@ void receive_tcp_packets(struct packet_reception_args *args)
                                  MAX_EPOLL_EVENTS,
                                  -1);
         if (-1 == n) {
+            if (EINTR == errno) continue;
             perror("epoll_wait");
             close_connection(args->remotehost);
         }
